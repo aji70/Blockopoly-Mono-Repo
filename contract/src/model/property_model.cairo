@@ -1,5 +1,30 @@
 use starknet::{ContractAddress, contract_address_const};
 
+#[derive(Serde, Copy, Drop, Introspect, PartialEq)]
+#[dojo::model]
+pub struct TradeCounter {
+    #[key]
+    pub id: felt252,
+    pub current_val: u256,
+}
+
+#[derive(Clone, Drop, Serde)]
+#[dojo::model]
+pub struct TradeOfferDetails {
+    #[key]
+    pub id: u256,
+    pub from: ContractAddress,
+    pub to: ContractAddress,
+    pub game_id: u256,
+    pub offered_property_ids: Array<u8>,
+    pub requested_property_ids: Array<u8>,
+    pub cash_offer: u256,
+    pub cash_request: u256,
+    pub trade_type: TradeOffer,
+    pub status: TradeStatus,
+    pub is_countered: bool,
+    pub approve_counter: bool,
+}
 #[derive(Copy, Drop, Serde)]
 #[dojo::model]
 pub struct Property {
@@ -36,6 +61,27 @@ pub enum PropertyType {
     FreeParking,
     Property,
     VisitingJail,
+}
+
+#[derive(Serde, Copy, Drop, Introspect, PartialEq, Debug)]
+pub enum TradeOffer {
+    PropertyForProperty,
+    PropertyForCash,
+    CashForProperty,
+    CashPlusPropertyForProperty,
+    PropertyForCashPlusProperty,
+    CashForChanceJailCard,
+    CashForCommunityJailCard,
+    CommunityJailCardForCash,
+    ChanceJailCardForCash,
+}
+
+#[derive(Serde, Copy, Drop, Introspect, PartialEq, Debug)]
+pub enum TradeStatus {
+    Accepted,
+    Rejected,
+    Pending,
+    Countered,
 }
 
 

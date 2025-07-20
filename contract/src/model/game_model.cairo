@@ -1,5 +1,4 @@
 use starknet::{ContractAddress, contract_address_const};
-use dojo_starter::model::game_player_model::{GamePlayer, PlayerSymbol, GamePlayerTrait};
 // Keeps track of the state of the game
 
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
@@ -31,7 +30,7 @@ pub struct Game {
     pub status: GameStatus, // Status of the game
     pub mode: GameType, // Mode of the game
     pub ready_to_start: bool, // Indicate whether game can be started
-    pub winner: felt252, // First winner position 
+    pub winner: ContractAddress, // First winner position 
     pub next_player: ContractAddress, // Address of the player to make the next move
     pub number_of_players: u8, // Number of players in the game
     pub rolls_count: u256, //  Sum of all the numbers rolled by the dice
@@ -139,7 +138,7 @@ impl GameImpl of GameTrait {
             player_boot,
             player_wheelbarrow,
             next_player: zero_address.into(),
-            winner: zero_address.into(),
+            winner: zero_address,
             rolls_times: 0,
             rolls_count: 0,
             number_of_players,
@@ -206,4 +205,3 @@ pub impl GameBalanceImpl of IGameBalance {
         true
     }
 }
-

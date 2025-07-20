@@ -1,14 +1,7 @@
 use dojo_starter::model::game_model::{GameType, Game};
 use dojo_starter::model::game_player_model::{PlayerSymbol, GamePlayer};
 use dojo_starter::model::player_model::Player;
-use dojo_starter::model::property_model::Property;
-use dojo_starter::model::utility_model::Utility;
-use dojo_starter::model::rail_road_model::RailRoad;
-use dojo_starter::model::community_chest_model::CommunityChest;
-use dojo_starter::model::chance_model::Chance;
-use dojo_starter::model::jail_model::Jail;
-use dojo_starter::model::go_free_parking_model::Go;
-use dojo_starter::model::tax_model::Tax;
+use dojo_starter::model::property_model::{Property, TradeOffer, TradeOfferDetails};
 use starknet::{ContractAddress};
 
 
@@ -35,32 +28,52 @@ pub trait IActions<T> {
 
     // Board spaces retrieval
     fn get_property(self: @T, id: u8, game_id: u256) -> Property;
-    fn get_utility(self: @T, id: u8, game_id: u256) -> Utility;
-    fn get_chance(self: @T, id: u8, game_id: u256) -> Chance;
-    fn get_jail(self: @T, id: u8, game_id: u256) -> Jail;
-    fn get_go(self: @T, id: u8, game_id: u256) -> Go;
-    fn get_community_chest(self: @T, id: u8, game_id: u256) -> CommunityChest;
-    fn get_railroad(self: @T, id: u8, game_id: u256) -> RailRoad;
-    fn get_tax(self: @T, id: u8, game_id: u256) -> Tax;
+
+    fn use_getout_of_jail_chance(ref self: T, game_id: u256) -> bool;
+    fn use_getout_of_jail_community_chest(ref self: T, game_id: u256) -> bool;
+
+    fn calculate_net_worth(ref self: T, player: GamePlayer) -> u256;
+
+    fn get_winner_by_net_worth(ref self: T, players: Array<GamePlayer>) -> ContractAddress;
+    fn end_game(ref self: T, game: Game) -> ContractAddress;
+
+    fn offer_trade(
+        ref self: T,
+        game_id: u256,
+        to: ContractAddress,
+        offered_property_ids: Array<u8>,
+        requested_property_ids: Array<u8>,
+        cash_offer: u256,
+        cash_request: u256,
+        trade_type: TradeOffer,
+    ) -> u256;
+
+    fn accept_trade(ref self: T, trade_id: u256, game_id: u256) -> bool;
+
+    fn reject_trade(ref self: T, trade_id: u256, game_id: u256) -> bool;
+
+    fn leave_game(ref self: T, game_id: u256, transfer_to: ContractAddress);
+    fn counter_trade(
+        ref self: T,
+        game_id: u256,
+        original_offer_id: u256,
+        offered_property_ids: Array<u8>,
+        requested_property_ids: Array<u8>,
+        cash_offer: u256,
+        cash_request: u256,
+        trade_type: TradeOffer,
+    ) -> u256;
+    fn approve_counter_trade(ref self: T, trade_id: u256) -> bool;
+    fn get_trade(self: @T, trade_id: u256) -> TradeOfferDetails;
 
     // Dice & player movement
     fn roll_dice(ref self: T) -> (u8, u8);
     fn move_player(ref self: T, game_id: u256, steps: u8) -> u8;
-    // fn handle_chance(ref self: T, game_id: u256, random_index: u32) -> @ByteArray;
+    fn pay_jail_fine(ref self: T, game_id: u256) -> bool;
 
-    // Handling landings on board
-    // fn draw_chance_card(ref self: T, game_id: u256) -> Chance;
-    // fn draw_community_chest_card(ref self: T, game_id: u256) -> CommunityChest;
-    // fn pay_tax(ref self: T, game_id: u256, tax_id: u8) -> bool;
-    // fn go_to_jail(ref self: T, game_id: u256) -> bool;
-
-    // Jail specific actions
-    // fn pay_jail_fee(ref self: T, game_id: u256) -> bool;
-    // fn use_jail_card(ref self: T, game_id: u256) -> bool;
 
     // Property transactions
     fn buy_property(ref self: T, property: Property) -> bool;
-    fn sell_property(ref self: T, property_id: u8, game_id: u256) -> bool;
     fn mortgage_property(ref self: T, property: Property) -> bool;
     fn unmortgage_property(ref self: T, property: Property) -> bool;
     fn pay_rent(ref self: T, property: Property) -> bool;
@@ -76,18 +89,9 @@ pub trait IActions<T> {
     fn process_community_chest_card(
         ref self: T, game: Game, player: GamePlayer, card: ByteArray,
     ) -> (Game, GamePlayer);
-    // Trading system
-    // fn offer_trade(
-    //     ref self: T,
-    //     game_id: u256,
-    //     to: ContractAddress,
-    //     offered_property_ids: Array<u8>,
-    //     requested_property_ids: Array<u8>,
-    //     cash_offer: u256,
-    //     cash_request: u256
-    // );
-    // fn accept_trade(ref self: T, game_id: u256, trade_id: u256) -> bool;
-    // fn decline_trade(ref self: T, game_id: u256, trade_id: u256) -> bool;
+
+    fn bankruptcy_check(ref self: T, player: GamePlayer, amount_owed: u256);
+    fn vote_to_kick_player(ref self: T, game_id: u256, target_player: ContractAddress);
 
     // // Auctions
     // fn start_auction(ref self: T, property_id: u8, game_id: u256);
@@ -99,8 +103,4 @@ pub trait IActions<T> {
         ref self: T, from: GamePlayer, to: GamePlayer, amount: u256,
     ) -> Array<GamePlayer>;
     fn mint(ref self: T, recepient: ContractAddress, game_id: u256, amount: u256);
-    // Bankruptcy & ending game
-// fn declare_bankruptcy(ref self: T, game_id: u256) -> bool;
-// fn check_winner(self: @T, game_id: u256) -> Option<ContractAddress>;
-// fn end_game(ref self: T, game_id: u256) -> bool;
 }
