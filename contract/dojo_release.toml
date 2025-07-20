@@ -24,3 +24,13 @@ private_key = "0xc5b2fcab997346f3ea1c00b002ecf6f382c5f9c9659a3894eb783c5320f912"
 
 [writers]
 "dojo_starter" = ["dojo_starter-actions"]
+"blockopoly-GameCounter" = ["dojo_starter-actions"]
+"blockopoly-Game" = ["dojo_starter-actions"]
+"blockopoly-GamePlayer" = ["dojo_starter-actions"]
+"blockopoly-Player" = ["dojo_starter-actions"]
+"blockopoly-UsernameToAddress" = ["dojo_starter-actions"]
+"blockopoly-AddressToUsername" = ["dojo_starter-actions"]
+"blockopoly-IsRegistered" = ["dojo_starter-actions"]
+"blockopoly-TradeCounter" = ["dojo_starter-actions"]
+"blockopoly-TradeOfferDetails" = ["dojo_starter-actions"]
+"blockopoly-Prop" = ["dojo_starter-actions"]

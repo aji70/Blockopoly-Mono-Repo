@@ -3,10 +3,9 @@
 pub mod actions {
     use dojo_starter::interfaces::IActions::IActions;
     use dojo_starter::model::property_model::{
-        Property, PropertyType, PropertyTrait, PropertyToId, IdToProperty,
+        Property, PropertyType, PropertyTrait, PropertyToId, IdToProperty, TradeOffer,
+        TradeOfferDetails, TradeCounter, TradeStatus,
     };
-    use dojo_starter::model::utility_model::{Utility, UtilityTrait, UtilityToId, IdToUtility};
-    use dojo_starter::model::rail_road_model::{RailRoad, RailRoadTrait, RailRoadToId, IdToRailRoad};
     use dojo_starter::model::game_model::{
         GameType, Game, GameBalance, GameTrait, GameCounter, GameStatus, IGameBalance,
     };
@@ -14,11 +13,6 @@ pub mod actions {
         Player, UsernameToAddress, AddressToUsername, PlayerTrait, IsRegistered,
     };
     use dojo_starter::model::game_player_model::{GamePlayer, PlayerSymbol, GamePlayerTrait};
-    use dojo_starter::model::chance_model::{Chance, ChanceTrait};
-    use dojo_starter::model::community_chest_model::{CommunityChest, CommunityChestTrait};
-    use dojo_starter::model::jail_model::{Jail};
-    use dojo_starter::model::go_free_parking_model::{Go};
-    use dojo_starter::model::tax_model::{Tax};
     use starknet::{
         ContractAddress, get_caller_address, get_block_timestamp, contract_address_const,
         get_contract_address,
@@ -135,29 +129,6 @@ pub mod actions {
                 );
         }
 
-        fn get_tax(self: @ContractState, id: u8, game_id: u256) -> Tax {
-            let world = self.world_default();
-            let tax: Tax = world.read_model((id, game_id));
-            tax
-        }
-
-        fn get_go(self: @ContractState, id: u8, game_id: u256) -> Go {
-            let world = self.world_default();
-            let go: Go = world.read_model((id, game_id));
-            go
-        }
-
-        fn get_chance(self: @ContractState, id: u8, game_id: u256) -> Chance {
-            let world = self.world_default();
-            let chance: Chance = world.read_model((id, game_id));
-            chance
-        }
-
-        fn get_community_chest(self: @ContractState, id: u8, game_id: u256) -> CommunityChest {
-            let world = self.world_default();
-            let community_chest: CommunityChest = world.read_model((id, game_id));
-            community_chest
-        }
 
         fn get_property(self: @ContractState, id: u8, game_id: u256) -> Property {
             let world = self.world_default();
@@ -165,23 +136,6 @@ pub mod actions {
             property
         }
 
-        fn get_utility(self: @ContractState, id: u8, game_id: u256) -> Utility {
-            let world = self.world_default();
-            let utility: Utility = world.read_model((id, game_id));
-            utility
-        }
-
-        fn get_railroad(self: @ContractState, id: u8, game_id: u256) -> RailRoad {
-            let world = self.world_default();
-            let railroad: RailRoad = world.read_model((id, game_id));
-            railroad
-        }
-
-        fn get_jail(self: @ContractState, id: u8, game_id: u256) -> Jail {
-            let world = self.world_default();
-            let jail: Jail = world.read_model((id, game_id));
-            jail
-        }
 
         fn start_game(ref self: ContractState, game_id: u256) -> bool {
             let mut world = self.world_default();
@@ -341,20 +295,6 @@ pub mod actions {
         }
 
 
-        fn sell_property(ref self: ContractState, property_id: u8, game_id: u256) -> bool {
-            let mut world = self.world_default();
-            let caller = get_caller_address();
-            let mut property: Property = world.read_model((property_id, game_id));
-
-            assert(property.owner == caller, 'Can only sell your property');
-
-            property.for_sale = true;
-            world.write_model(@property);
-
-            true
-        }
-
-
         fn mortgage_property(ref self: ContractState, mut property: Property) -> bool {
             let mut world = self.world_default();
 
@@ -463,6 +403,63 @@ pub mod actions {
             true
         }
 
+        fn pay_jail_fine(ref self: ContractState, game_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+            let mut player: GamePlayer = world.read_model((caller, game_id));
+            let mut game: Game = world.read_model(game_id);
+
+            assert(game.status == GameStatus::Ongoing, 'Game not started');
+            assert(player.jailed, 'Not in jail');
+
+            // Pay the fine
+            let fine_amount: u256 = 50;
+            assert(player.balance >= fine_amount, 'Insufficient funds to pay fine');
+
+            player.balance -= fine_amount;
+            player.jailed = false;
+            player.jail_turns = 0;
+
+            world.write_model(@game);
+            world.write_model(@player);
+
+            true
+        }
+
+        fn use_getout_of_jail_chance(ref self: ContractState, game_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+            let mut player: GamePlayer = world.read_model((caller, game_id));
+            let mut game: Game = world.read_model(game_id);
+            assert(player.chance_jail_card, 'No chance card');
+            assert(player.jailed, 'Not in jail');
+            assert(game.status == GameStatus::Ongoing, 'Game not started');
+            // Use the card
+            player.chance_jail_card = false;
+            player.jailed = false;
+            player.jail_turns = 0;
+            world.write_model(@game);
+            world.write_model(@player);
+            true
+        }
+
+        fn use_getout_of_jail_community_chest(ref self: ContractState, game_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+            let mut player: GamePlayer = world.read_model((caller, game_id));
+            let mut game: Game = world.read_model(game_id);
+            assert(player.comm_free_card, 'No community chest card');
+            assert(player.jailed, 'Not in jail');
+            assert(game.status == GameStatus::Ongoing, 'Game not started');
+            // Use the card
+            player.comm_free_card = false;
+            player.jailed = false;
+            player.jail_turns = 0;
+            world.write_model(@game);
+            world.write_model(@player);
+            true
+        }
+
 
         fn move_player(ref self: ContractState, game_id: u256, steps: u8) -> u8 {
             let mut world = self.world_default();
@@ -470,28 +467,57 @@ pub mod actions {
             let mut game_player: GamePlayer = world.read_model((caller, game_id));
             let mut game: Game = world.read_model(game_id);
 
-            assert(game.next_player == caller, 'Not your turn');
-            assert(game.status == GameStatus::Ongoing, 'Game is not ongoing');
+            assert!(game.next_player == caller, "Not your turn");
+            assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
 
-            // Move player
+            // Handle jailed players
+            if game_player.jailed {
+                game_player.jail_turns += 1;
+
+                if game_player.jail_turns > 3 {
+                    // Automatically release player after 3 turns
+                    game_player.jailed = false;
+                    game_player.jail_turns = 0;
+                } else {
+                    // Still in jail, no move
+                    world.write_model(@game_player);
+                    return game_player.position;
+                }
+            }
+
+            // Now free to move
             game_player = GamePlayerTrait::move(game_player, steps);
-
             game_player.dice_rolled = steps;
 
-            if game_player.position > 40 {
-                game_player.position = ((game_player.position - 1) % 40) + 1;
+            // Passed or landed on Go
+            if game_player.position >= 40 {
+                game_player.position %= 40;
                 game_player.balance += 200;
             }
 
+            // Landing on "Go To Jail" space
+            if game_player.position == 30 {
+                game_player.position = 10;
+                game_player.jailed = true;
+                game_player.jail_turns = 0;
+
+                world.write_model(@game_player);
+                world.write_model(@game);
+                return game_player.position;
+            }
+
+            // Handle landing on property
             let mut property = self.get_property(game_player.position, game_id);
-            property = self.handle_property_landing(game_player.clone(), property.clone());
+            property = self.handle_property_landing(game_player.clone(), property);
 
             // Update state
             world.write_model(@game_player);
             world.write_model(@game);
+            world.write_model(@property);
 
             game_player.position
         }
+
 
         fn buy_property(ref self: ContractState, mut property: Property) -> bool {
             // get the world
@@ -611,40 +637,932 @@ pub mod actions {
         }
 
 
-        // fn offer_trade(
-        //     ref self: ContractState,
-        //     game_id: u256,
-        //     to: ContractAddress,
-        //     offered_property_ids: Array<u8>,
-        //     requested_property_ids: Array<u8>,
-        //     cash_offer: u256,
-        //     cash_request: u256,
-        // ) {
-        //     let mut world = self.world_default();
-        //     let caller = get_caller_address();
+        fn offer_trade(
+            ref self: ContractState,
+            game_id: u256,
+            to: ContractAddress,
+            offered_property_ids: Array<u8>,
+            requested_property_ids: Array<u8>,
+            cash_offer: u256,
+            cash_request: u256,
+            trade_type: TradeOffer,
+        ) -> u256 {
+            let caller = get_caller_address();
 
-        //     // Validate trade parameters
-        //     assert(offered_property_ids.len() > 0 || cash_offer > 0, 'No properties or cash
-        //     offered');
-        //     assert(requested_property_ids.len() > 0 || cash_request > 0, 'No properties or cash
-        //     requested');
+            let mut world = self.world_default();
+            let mut game: Game = world.read_model(game_id);
 
-        //     // Ensure the recipient is a valid player in the game
-        //     let recipient_username = self.get_username_from_address(to);
-        //     assert(recipient_username != 0, 'Recipient not registered');
+            assert!(game.next_player == caller, "Not your turn");
+            assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
 
-        //     // Create and store the trade offer
-        //     let trade_id = world.get_next_trade_id();
-        //     let trade_offer = TradeOffer {
-        //         trade_id,
-        //         from: caller,
-        //         to,
-        //         offered_property_ids,
-        //         requested_property_ids,
-        //         cash_offer,
-        //         cash_request,
-        //         status: TradeStatus::Pending,
-        //     };
+            let id = self.create_trade_id();
+
+            // Validate inputs here (as you do)
+            let mut offer: TradeOfferDetails = world.read_model(id);
+            // Create the offer struct
+
+            offer.id = id;
+            offer.from = caller;
+            offer.to = to;
+            offer.game_id = game_id;
+            offer.offered_property_ids = offered_property_ids;
+            offer.requested_property_ids = requested_property_ids;
+            offer.cash_offer = cash_offer;
+            offer.cash_request = cash_request;
+            offer.trade_type = trade_type;
+            offer.status = TradeStatus::Pending;
+
+            world.write_model(@offer);
+
+            id
+        }
+
+        fn accept_trade(ref self: ContractState, trade_id: u256, game_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+
+            let mut offer: TradeOfferDetails = world.read_model(trade_id);
+            assert!(caller == offer.to, "Only recipient can accept trade");
+
+            // Load offer
+
+            let mut initiator: GamePlayer = world.read_model((offer.from, offer.game_id));
+            let mut receiver: GamePlayer = world.read_model((offer.to, offer.game_id));
+
+            if offer.trade_type == TradeOffer::PropertyForCash {
+                // Transfer properties from initiator to receiver
+                let mut i = 0;
+                while i < offer.offered_property_ids.len() {
+                    let prop_id = *offer.offered_property_ids[i];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Manual transfer of ownership
+                    assert!(
+                        property.owner == initiator.address, "Initiator does not own this property",
+                    );
+                    property.owner = receiver.address;
+
+                    // Create a new array excluding the property being traded
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut j = 0;
+
+                    while j < initiator.properties_owned.len() {
+                        let owned_prop_id = *initiator.properties_owned[j];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        j += 1;
+                    };
+
+                    // Assign back the new array
+                    initiator.properties_owned = new_properties_owned;
+
+                    // Now add the property to the receiver
+                    receiver.properties_owned.append(prop_id);
+                    match property.group_id {
+                        0 => {},
+                        1 => receiver.no_section1 += 1,
+                        2 => receiver.no_section2 += 1,
+                        3 => receiver.no_section3 += 1,
+                        4 => receiver.no_section4 += 1,
+                        5 => receiver.no_section5 += 1,
+                        6 => receiver.no_section6 += 1,
+                        7 => receiver.no_section7 += 1,
+                        8 => receiver.no_section8 += 1,
+                        _ => {},
+                    }
+                    match property.group_id {
+                        0 => {},
+                        1 => initiator.no_section1 -= 1,
+                        2 => initiator.no_section2 -= 1,
+                        3 => initiator.no_section3 -= 1,
+                        4 => initiator.no_section4 -= 1,
+                        5 => initiator.no_section5 -= 1,
+                        6 => initiator.no_section6 -= 1,
+                        7 => initiator.no_section7 -= 1,
+                        8 => initiator.no_section8 -= 1,
+                        _ => {},
+                    }
+
+                    // Save updated property
+                    world.write_model(@property);
+
+                    i += 1;
+                };
+
+                // Transfer cash from receiver to initiator
+                assert!(receiver.balance >= offer.cash_request, "Receiver has insufficient cash");
+                receiver.balance -= offer.cash_request;
+                initiator.balance += offer.cash_request;
+
+                // Persist updated players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::PropertyForProperty {
+                // Transfer offered properties from initiator to receiver
+                let mut i = 0;
+                while i < offer.offered_property_ids.len() {
+                    let prop_id = *offer.offered_property_ids[i];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the initiator owns it
+                    assert!(
+                        property.owner == initiator.address, "Initiator does not own this property",
+                    );
+                    property.owner = receiver.address;
+
+                    // Remove from initiator properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut k = 0;
+                    while k < initiator.properties_owned.len() {
+                        let owned_prop_id = *initiator.properties_owned[k];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        k += 1;
+                    };
+                    initiator.properties_owned = new_properties_owned;
+
+                    // Add to receiver properties_owned
+                    receiver.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            receiver.no_section1 += 1;
+                            initiator.no_section1 -= 1;
+                        },
+                        2 => {
+                            receiver.no_section2 += 1;
+                            initiator.no_section2 -= 1;
+                        },
+                        3 => {
+                            receiver.no_section3 += 1;
+                            initiator.no_section3 -= 1;
+                        },
+                        4 => {
+                            receiver.no_section4 += 1;
+                            initiator.no_section4 -= 1;
+                        },
+                        5 => {
+                            receiver.no_section5 += 1;
+                            initiator.no_section5 -= 1;
+                        },
+                        6 => {
+                            receiver.no_section6 += 1;
+                            initiator.no_section6 -= 1;
+                        },
+                        7 => {
+                            receiver.no_section7 += 1;
+                            initiator.no_section7 -= 1;
+                        },
+                        8 => {
+                            receiver.no_section8 += 1;
+                            initiator.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    i += 1;
+                };
+
+                // Transfer requested properties from receiver to initiator
+                let mut j = 0;
+                while j < offer.requested_property_ids.len() {
+                    let prop_id = *offer.requested_property_ids[j];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the receiver owns it
+                    assert!(
+                        property.owner == receiver.address, "Receiver does not own this property",
+                    );
+                    property.owner = initiator.address;
+
+                    // Remove from receiver properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut l = 0;
+                    while l < receiver.properties_owned.len() {
+                        let owned_prop_id = *receiver.properties_owned[l];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        l += 1;
+                    };
+                    receiver.properties_owned = new_properties_owned;
+
+                    // Add to initiator properties_owned
+                    initiator.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            initiator.no_section1 += 1;
+                            receiver.no_section1 -= 1;
+                        },
+                        2 => {
+                            initiator.no_section2 += 1;
+                            receiver.no_section2 -= 1;
+                        },
+                        3 => {
+                            initiator.no_section3 += 1;
+                            receiver.no_section3 -= 1;
+                        },
+                        4 => {
+                            initiator.no_section4 += 1;
+                            receiver.no_section4 -= 1;
+                        },
+                        5 => {
+                            initiator.no_section5 += 1;
+                            receiver.no_section5 -= 1;
+                        },
+                        6 => {
+                            initiator.no_section6 += 1;
+                            receiver.no_section6 -= 1;
+                        },
+                        7 => {
+                            initiator.no_section7 += 1;
+                            receiver.no_section7 -= 1;
+                        },
+                        8 => {
+                            initiator.no_section8 += 1;
+                            receiver.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    j += 1;
+                };
+
+                // Write updated players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::CashForProperty {
+                // Transfer cash from initiator to receiver
+                assert!(initiator.balance >= offer.cash_offer, "Initiator has insufficient cash");
+                initiator.balance -= offer.cash_offer;
+                receiver.balance += offer.cash_offer;
+
+                // Transfer requested properties from receiver to initiator
+                let mut j = 0;
+                while j < offer.requested_property_ids.len() {
+                    let prop_id = *offer.requested_property_ids[j];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the receiver owns it
+                    assert!(
+                        property.owner == receiver.address, "Receiver does not own this property",
+                    );
+                    property.owner = initiator.address;
+
+                    // Remove from receiver properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut l = 0;
+                    while l < receiver.properties_owned.len() {
+                        let owned_prop_id = *receiver.properties_owned[l];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        l += 1;
+                    };
+                    receiver.properties_owned = new_properties_owned;
+
+                    // Add to initiator properties_owned
+                    initiator.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            initiator.no_section1 += 1;
+                            receiver.no_section1 -= 1;
+                        },
+                        2 => {
+                            initiator.no_section2 += 1;
+                            receiver.no_section2 -= 1;
+                        },
+                        3 => {
+                            initiator.no_section3 += 1;
+                            receiver.no_section3 -= 1;
+                        },
+                        4 => {
+                            initiator.no_section4 += 1;
+                            receiver.no_section4 -= 1;
+                        },
+                        5 => {
+                            initiator.no_section5 += 1;
+                            receiver.no_section5 -= 1;
+                        },
+                        6 => {
+                            initiator.no_section6 += 1;
+                            receiver.no_section6 -= 1;
+                        },
+                        7 => {
+                            initiator.no_section7 += 1;
+                            receiver.no_section7 -= 1;
+                        },
+                        8 => {
+                            initiator.no_section8 += 1;
+                            receiver.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    j += 1;
+                };
+
+                // Write updated players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::CashPlusPropertyForProperty {
+                // Transfer offered properties from initiator to receiver
+                let mut i = 0;
+                while i < offer.offered_property_ids.len() {
+                    let prop_id = *offer.offered_property_ids[i];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the initiator owns it
+                    assert!(
+                        property.owner == initiator.address, "Initiator does not own this property",
+                    );
+                    property.owner = receiver.address;
+
+                    // Remove from initiator properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut k = 0;
+                    while k < initiator.properties_owned.len() {
+                        let owned_prop_id = *initiator.properties_owned[k];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        k += 1;
+                    };
+                    initiator.properties_owned = new_properties_owned;
+
+                    // Add to receiver properties_owned
+                    receiver.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            receiver.no_section1 += 1;
+                            initiator.no_section1 -= 1;
+                        },
+                        2 => {
+                            receiver.no_section2 += 1;
+                            initiator.no_section2 -= 1;
+                        },
+                        3 => {
+                            receiver.no_section3 += 1;
+                            initiator.no_section3 -= 1;
+                        },
+                        4 => {
+                            receiver.no_section4 += 1;
+                            initiator.no_section4 -= 1;
+                        },
+                        5 => {
+                            receiver.no_section5 += 1;
+                            initiator.no_section5 -= 1;
+                        },
+                        6 => {
+                            receiver.no_section6 += 1;
+                            initiator.no_section6 -= 1;
+                        },
+                        7 => {
+                            receiver.no_section7 += 1;
+                            initiator.no_section7 -= 1;
+                        },
+                        8 => {
+                            receiver.no_section8 += 1;
+                            initiator.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    i += 1;
+                };
+
+                // Transfer cash from initiator to receiver
+                assert!(initiator.balance >= offer.cash_offer, "Initiator has insufficient cash");
+                initiator.balance -= offer.cash_offer;
+                receiver.balance += offer.cash_offer;
+
+                // Transfer requested properties from receiver to initiator
+                let mut j = 0;
+                while j < offer.requested_property_ids.len() {
+                    let prop_id = *offer.requested_property_ids[j];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the receiver owns it
+                    assert!(
+                        property.owner == receiver.address, "Receiver does not own this property",
+                    );
+                    property.owner = initiator.address;
+
+                    // Remove from receiver properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut l = 0;
+                    while l < receiver.properties_owned.len() {
+                        let owned_prop_id = *receiver.properties_owned[l];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        l += 1;
+                    };
+                    receiver.properties_owned = new_properties_owned;
+
+                    // Add to initiator properties_owned
+                    initiator.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            initiator.no_section1 += 1;
+                            receiver.no_section1 -= 1;
+                        },
+                        2 => {
+                            initiator.no_section2 += 1;
+                            receiver.no_section2 -= 1;
+                        },
+                        3 => {
+                            initiator.no_section3 += 1;
+                            receiver.no_section3 -= 1;
+                        },
+                        4 => {
+                            initiator.no_section4 += 1;
+                            receiver.no_section4 -= 1;
+                        },
+                        5 => {
+                            initiator.no_section5 += 1;
+                            receiver.no_section5 -= 1;
+                        },
+                        6 => {
+                            initiator.no_section6 += 1;
+                            receiver.no_section6 -= 1;
+                        },
+                        7 => {
+                            initiator.no_section7 += 1;
+                            receiver.no_section7 -= 1;
+                        },
+                        8 => {
+                            initiator.no_section8 += 1;
+                            receiver.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    j += 1;
+                };
+
+                // Write updated players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::PropertyForCashPlusProperty {
+                // Transfer offered properties from initiator to receiver
+                let mut i = 0;
+                while i < offer.offered_property_ids.len() {
+                    let prop_id = *offer.offered_property_ids[i];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the initiator owns it
+                    assert!(
+                        property.owner == initiator.address, "Initiator does not own this property",
+                    );
+                    property.owner = receiver.address;
+
+                    // Remove from initiator properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut k = 0;
+                    while k < initiator.properties_owned.len() {
+                        let owned_prop_id = *initiator.properties_owned[k];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        k += 1;
+                    };
+                    initiator.properties_owned = new_properties_owned;
+
+                    // Add to receiver properties_owned
+                    receiver.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            receiver.no_section1 += 1;
+                            initiator.no_section1 -= 1;
+                        },
+                        2 => {
+                            receiver.no_section2 += 1;
+                            initiator.no_section2 -= 1;
+                        },
+                        3 => {
+                            receiver.no_section3 += 1;
+                            initiator.no_section3 -= 1;
+                        },
+                        4 => {
+                            receiver.no_section4 += 1;
+                            initiator.no_section4 -= 1;
+                        },
+                        5 => {
+                            receiver.no_section5 += 1;
+                            initiator.no_section5 -= 1;
+                        },
+                        6 => {
+                            receiver.no_section6 += 1;
+                            initiator.no_section6 -= 1;
+                        },
+                        7 => {
+                            receiver.no_section7 += 1;
+                            initiator.no_section7 -= 1;
+                        },
+                        8 => {
+                            receiver.no_section8 += 1;
+                            initiator.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    i += 1;
+                };
+
+                // Transfer cash from receiver to initiator
+                assert!(receiver.balance >= offer.cash_request, "Receiver has insufficient cash");
+                receiver.balance -= offer.cash_request;
+                initiator.balance += offer.cash_request;
+
+                // Transfer requested properties from receiver to initiator
+                let mut j = 0;
+                while j < offer.requested_property_ids.len() {
+                    let prop_id = *offer.requested_property_ids[j];
+                    let mut property: Property = world.read_model((prop_id, game_id));
+
+                    // Ensure the receiver owns it
+                    assert!(
+                        property.owner == receiver.address, "Receiver does not own this property",
+                    );
+                    property.owner = initiator.address;
+
+                    // Remove from receiver properties_owned
+                    let mut new_properties_owned: Array<u8> = ArrayTrait::new();
+                    let mut l = 0;
+                    while l < receiver.properties_owned.len() {
+                        let owned_prop_id = *receiver.properties_owned[l];
+                        if owned_prop_id != prop_id {
+                            new_properties_owned.append(owned_prop_id);
+                        }
+                        l += 1;
+                    };
+                    receiver.properties_owned = new_properties_owned;
+
+                    // Add to initiator properties_owned
+                    initiator.properties_owned.append(prop_id);
+
+                    // Update section counters
+                    match property.group_id {
+                        0 => {},
+                        1 => {
+                            initiator.no_section1 += 1;
+                            receiver.no_section1 -= 1;
+                        },
+                        2 => {
+                            initiator.no_section2 += 1;
+                            receiver.no_section2 -= 1;
+                        },
+                        3 => {
+                            initiator.no_section3 += 1;
+                            receiver.no_section3 -= 1;
+                        },
+                        4 => {
+                            initiator.no_section4 += 1;
+                            receiver.no_section4 -= 1;
+                        },
+                        5 => {
+                            initiator.no_section5 += 1;
+                            receiver.no_section5 -= 1;
+                        },
+                        6 => {
+                            initiator.no_section6 += 1;
+                            receiver.no_section6 -= 1;
+                        },
+                        7 => {
+                            initiator.no_section7 += 1;
+                            receiver.no_section7 -= 1;
+                        },
+                        8 => {
+                            initiator.no_section8 += 1;
+                            receiver.no_section8 -= 1;
+                        },
+                        _ => {},
+                    }
+
+                    // Write updated property
+                    world.write_model(@property);
+
+                    j += 1;
+                };
+
+                // Write updated players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::CashForChanceJailCard {
+                // Initiator pays cash to receiver for receiver's chance jail card
+                assert!(initiator.balance >= offer.cash_offer, "Initiator has insufficient cash");
+                assert!(receiver.chance_jail_card, "Receiver does not have a chance jail card");
+                assert!(!initiator.chance_jail_card, "Initiator already owns a chance jail card");
+
+                // Transfer cash
+                initiator.balance -= offer.cash_offer;
+                receiver.balance += offer.cash_offer;
+
+                // Transfer the card
+                receiver.chance_jail_card = false;
+                initiator.chance_jail_card = true;
+
+                // Write back players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::CommunityJailCardForCash {
+                // Initiator pays cash to receiver for receiver's community jail card
+                assert!(initiator.balance >= offer.cash_offer, "Initiator has insufficient cash");
+                assert!(receiver.comm_free_card, "Receiver does not have a community jail card");
+                assert!(!initiator.comm_free_card, "Initiator already owns a community jail card");
+
+                // Transfer cash
+                initiator.balance -= offer.cash_offer;
+                receiver.balance += offer.cash_offer;
+
+                // Transfer the card
+                receiver.comm_free_card = false;
+                initiator.comm_free_card = true;
+
+                // Write back players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::CashForCommunityJailCard {
+                // Receiver pays cash to initiator for initiator's community jail card
+                assert!(receiver.balance >= offer.cash_request, "Receiver has insufficient cash");
+                assert!(initiator.comm_free_card, "Initiator does not have a community jail card");
+                assert!(!receiver.comm_free_card, "Receiver already owns a community jail card");
+
+                // Transfer cash
+                receiver.balance -= offer.cash_request;
+                initiator.balance += offer.cash_request;
+
+                // Transfer the card
+                initiator.comm_free_card = false;
+                receiver.comm_free_card = true;
+
+                // Write back players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            } else if offer.trade_type == TradeOffer::ChanceJailCardForCash {
+                // Receiver pays cash to initiator for initiator's chance jail card
+                assert!(receiver.balance >= offer.cash_request, "Receiver has insufficient cash");
+                assert!(initiator.chance_jail_card, "Initiator does not have a chance jail card");
+                assert!(!receiver.chance_jail_card, "Receiver already owns a chance jail card");
+
+                // Transfer cash
+                receiver.balance -= offer.cash_request;
+                initiator.balance += offer.cash_request;
+
+                // Transfer the card
+                initiator.chance_jail_card = false;
+                receiver.chance_jail_card = true;
+
+                // Write back players
+                world.write_model(@initiator);
+                world.write_model(@receiver);
+            }
+
+            offer.status = TradeStatus::Accepted;
+
+            // Save updated player and property data
+            world.write_model(@initiator);
+            world.write_model(@receiver);
+            world.write_model(@offer);
+
+            true
+        }
+        fn calculate_net_worth(ref self: ContractState, player: GamePlayer) -> u256 {
+            let mut world = self.world_default();
+
+            let mut total_property_value: u256 = 0;
+            let mut total_house_cost: u256 = 0;
+            let mut total_rent_value: u256 = 0;
+            let mut card_value: u256 = 0;
+            let mut i = 0;
+            let properties_len = player.properties_owned.len();
+
+            while i < properties_len {
+                let prop_id = *player.properties_owned.at(i);
+                let game_id = player.game_id;
+                let property: Property = self.get_property(prop_id, game_id);
+
+                // Property value (half if mortgaged)
+                if property.is_mortgaged {
+                    total_property_value += property.cost_of_property / 2;
+                } else {
+                    total_property_value += property.cost_of_property;
+                }
+
+                // House/hotel cost
+                if property.development < 5 {
+                    total_house_cost += property.cost_of_house * property.development.into();
+                } else if property.development == 5 {
+                    total_house_cost += property.cost_of_house * 5;
+                }
+
+                // Rent value (always add — mortgaged or not, since it's dev level based)
+                let rent = match property.development {
+                    0 => property.rent_site_only,
+                    1 => property.rent_one_house,
+                    2 => property.rent_two_houses,
+                    3 => property.rent_three_houses,
+                    4 => property.rent_four_houses,
+                    _ => property.rent_hotel,
+                };
+                total_rent_value += rent;
+
+                i += 1;
+            };
+
+            // Jail/Chance card value
+            if player.chance_jail_card {
+                card_value += 50;
+            }
+            if player.comm_free_card {
+                card_value += 50;
+            }
+
+            let net_worth = player.balance
+                + total_property_value
+                + total_house_cost
+                + total_rent_value
+                + card_value;
+
+            // Debug prints
+            println!("Balance: {}", player.balance);
+            println!("Total property value: {}", total_property_value);
+            println!("Total house cost: {}", total_house_cost);
+            println!("Total rent value: {}", total_rent_value);
+            println!("Card value: {}", card_value);
+            println!("NET WORTH: {}", net_worth);
+
+            net_worth
+        }
+        fn get_winner_by_net_worth(
+            ref self: ContractState, players: Array<GamePlayer>,
+        ) -> ContractAddress {
+            let mut i = 0;
+            let mut max_net_worth: u256 = 0;
+            let mut winner_address: ContractAddress = contract_address_const::<'0'>();
+
+            let players_len = players.len();
+            while i < players_len {
+                let player = players.at(i);
+                let net_worth = self.calculate_net_worth(player.clone());
+
+                if net_worth > max_net_worth {
+                    max_net_worth = net_worth;
+                    winner_address = *player.address;
+                };
+
+                i += 1;
+            };
+
+            winner_address
+        }
+
+
+        fn end_game(ref self: ContractState, game: Game) -> ContractAddress {
+            let mut world = self.world_default();
+            let mut players: Array<GamePlayer> = ArrayTrait::new();
+
+            let total_players = game.game_players.len();
+            let mut i = 0;
+
+            // Indexed loop over game.players
+            while i < total_players {
+                let player_address = game.game_players.at(i);
+                let player_model: GamePlayer = world.read_model((*player_address, game.id));
+
+                players.append(player_model);
+                i += 1;
+            };
+
+            // Find the winner by net worth
+            let winner_address = self.get_winner_by_net_worth(players);
+            let winner: Player = world.read_model(winner_address);
+
+            // Set game status to ended
+            let mut updated_game = game;
+            updated_game.status = GameStatus::Ended;
+            updated_game.winner = winner.address;
+
+            // Write back the updated game state
+            world.write_model(@updated_game);
+
+            // Return the winner's address
+            winner.address
+        }
+
+
+        fn reject_trade(ref self: ContractState, trade_id: u256, game_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+
+            let mut offer: TradeOfferDetails = world.read_model(trade_id);
+            assert!(caller == offer.to, "Only recipient can reject trade");
+            offer.status = TradeStatus::Rejected;
+
+            world.write_model(@offer);
+
+            true
+        }
+
+        fn counter_trade(
+            ref self: ContractState,
+            game_id: u256,
+            original_offer_id: u256,
+            offered_property_ids: Array<u8>,
+            requested_property_ids: Array<u8>,
+            cash_offer: u256,
+            cash_request: u256,
+            trade_type: TradeOffer,
+        ) -> u256 {
+            let caller = get_caller_address();
+
+            let mut world = self.world_default();
+            let mut game: Game = world.read_model(game_id);
+
+            assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
+
+            let mut original_offer: TradeOfferDetails = world.read_model(original_offer_id);
+
+            // Ensure the caller is the recipient of the original offer
+            assert!(
+                original_offer.to == caller, "Only the receiver of the original trade can counter",
+            );
+
+            original_offer.id = original_offer.id;
+            original_offer.game_id = game_id;
+            original_offer.offered_property_ids = offered_property_ids;
+            original_offer.requested_property_ids = requested_property_ids;
+            original_offer.cash_offer = cash_offer;
+            original_offer.cash_request = cash_request;
+            original_offer.trade_type = trade_type;
+            original_offer.status = TradeStatus::Countered;
+            original_offer.is_countered = true;
+
+            world.write_model(@original_offer);
+
+            original_offer.id
+        }
+
+        fn approve_counter_trade(ref self: ContractState, trade_id: u256) -> bool {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+
+            let mut offer: TradeOfferDetails = world.read_model(trade_id);
+            assert!(caller == offer.from, "Only the initiator can approve the counter trade");
+            assert!(offer.status == TradeStatus::Countered, "Trade is not pending");
+
+            // Process the trade
+            offer.status = TradeStatus::Pending;
+            offer.is_countered = false;
+            offer.approve_counter = true;
+
+            true
+        }
+
+        fn get_trade(self: @ContractState, trade_id: u256) -> TradeOfferDetails {
+            let world = self.world_default();
+            let trade: TradeOfferDetails = world.read_model(trade_id);
+            trade
+        }
+
 
         fn sell_house_or_hotel(ref self: ContractState, property_id: u8, game_id: u256) -> bool {
             let mut world = self.world_default();
@@ -839,14 +1757,14 @@ pub mod actions {
             let property = self.get_property(player.position, game.id);
             assert(property.property_type == PropertyType::Chance, 'not on chance');
             if card == "Advance to Go (Collect $200)" {
-                player.position = 1;
+                player.position = 0;
                 player.balance += 200;
-            } else if card == "Advance to Illinois Avenue - If you pass Go, collect $200" {
+            } else if card == "Advance to MakerDAO Avenue - If you pass Go, collect $200" {
                 if player.position > 24 { // suppose Illinois is tile 24
                     player.balance += 200;
                 }
                 player.position = 24;
-            } else if card == "Advance to St. Charles Place - If you pass Go, collect $200" {
+            } else if card == "Advance to Arbitrium Avenue - If you pass Go, collect $200" {
                 if player.position > 11 {
                     player.balance += 200;
                 }
@@ -868,15 +1786,25 @@ pub mod actions {
                 let rail_pos = self.find_nearest(player.position, pos);
                 player.position = rail_pos;
                 let rail = self.get_property(rail_pos, game.clone().id);
-                self.pay_rent(rail);
-                self.pay_rent(rail);
+                let mut rail_owner: GamePlayer = self.retrieve_game_player(rail.owner, game.id);
+                let railroads = self.count_owner_railroads(property.owner, property.game_id);
+                let utilities = self.count_owner_utilities(property.owner, property.game_id);
+                let mut rent_amount = rail
+                    .get_rent_amount(railroads, utilities, player.dice_rolled.into());
+                if (rail.owner == get_contract_address()) {
+                    rent_amount = 0;
+                }
+                player.balance -= rent_amount;
+                rail_owner.balance += rent_amount;
+
+                world.write_model(@rail_owner);
             } else if card == "Bank pays you dividend of $50" {
                 player.balance += 50;
             } else if card == "Get out of Jail Free" {
                 player.chance_jail_card = true;
             } else if card == "Go Back 3 Spaces" {
                 if player.position < 4 {
-                    player.position = 40 - (4 - player.position);
+                    player.position = 39 - (4 - player.position);
                 } else {
                     player.position -= 3;
                 }
@@ -890,12 +1818,12 @@ pub mod actions {
                 player.balance -= cost.into();
             } else if card == "Pay poor tax of $15" {
                 player.balance -= 15;
-            } else if card == "Take a trip to Reading Railroad" {
-                if player.position > 6 {
+            } else if card == "Take a trip to IPFS Railroad" {
+                if player.position > 5 {
                     player.balance += 200;
                 }
-                player.position = 6; // reading railroad
-            } else if card == "Take a walk on the Boardwalk" {
+                player.position = 5; // reading railroad
+            } else if card == "Take a walk on the Bitcoin Lane" {
                 player.position = 39;
             } else if card == "Speeding fine $200" {
                 player.balance -= 200;
@@ -917,7 +1845,7 @@ pub mod actions {
                 property.property_type == PropertyType::CommunityChest, 'not on community chest',
             );
             if card == "Advance to Go (Collect $200)" {
-                player.position = 1;
+                player.position = 0;
                 player.balance += 200;
             } else if card == "Bank error in your favor - Collect $200" {
                 player.balance += 200;
@@ -928,7 +1856,7 @@ pub mod actions {
             } else if card == "Get Out of Jail Free" {
                 player.comm_free_card = true;
             } else if card == "Go to Jail" {
-                player.position = 11; // jail position
+                player.position = 10; // jail position
                 player.jailed = true;
             } else if card == "Grand Opera Night - collect $50 from every player" {
                 let mut i = 0;
@@ -970,6 +1898,159 @@ pub mod actions {
             world.write_model(@game);
             (game, player)
         }
+
+
+        fn leave_game(ref self: ContractState, game_id: u256, transfer_to: ContractAddress) {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+
+            // Load game and player
+            let mut game: Game = world.read_model(game_id);
+            let mut quitting_player: GamePlayer = world.read_model((caller, game_id));
+
+            // assert(quitting_player.in_game, "Player not in game");
+
+            // Transfer properties to another player
+            let mut i = 0;
+            let len = quitting_player.properties_owned.len();
+            while i < len {
+                if quitting_player.properties_owned.len() == 0 {
+                    break;
+                }
+                let prop_id = *quitting_player.properties_owned.at(i);
+                let mut prop: Property = world.read_model((game_id, prop_id));
+                prop.owner = transfer_to;
+                world.write_model(@prop);
+                i += 1;
+            };
+
+            // Remove player from game
+            let mut new_game_players: Array<ContractAddress> = array![];
+            let mut i = 0;
+            while i < game.game_players.len() {
+                let candidate = *game.game_players.at(i);
+                if candidate != caller {
+                    new_game_players.append(candidate);
+                }
+                i += 1;
+            };
+
+            game.game_players = new_game_players;
+            game.number_of_players -= 1;
+
+            // End game if only one player left
+            if game.number_of_players == 1 {
+                if game.game_players.len() > 0 {
+                    let winner = *game.game_players.at(0);
+                    game.winner = winner;
+                    game.status = GameStatus::Ended;
+                } else {
+                    // Fallback case: no players left, just mark game ended
+                    game.status = GameStatus::Ended;
+                }
+            }
+
+            // Save updates
+            // quitting_player.in_game = false;
+            quitting_player.properties_owned = array![];
+            world.write_model(@quitting_player);
+            world.write_model(@game);
+        }
+
+        fn bankruptcy_check(ref self: ContractState, player: GamePlayer, amount_owed: u256) {
+            let mut world = self.world_default();
+
+            let net_worth = self.calculate_net_worth(player.clone());
+
+            if net_worth > amount_owed {
+                return; // Not bankrupt
+            }
+
+            // Get property at player's current position
+            let game_id = player.game_id;
+            let tile_pos = player.position;
+            let property: Property = self.get_property(tile_pos, game_id);
+
+            // If no owner or already owned by the player, do nothing
+            if property.owner == get_contract_address() || property.owner == player.address {
+                println!("No valid new owner for bankrupt transfer");
+                return;
+            }
+
+            // Transfer properties
+            let mut i = 0;
+            let props_len = player.properties_owned.len();
+            while i < props_len {
+                let prop_id = *player.properties_owned.at(i);
+                let mut prop: Property = self.get_property(prop_id, game_id);
+                prop.owner = property.owner;
+                world.write_model(@prop);
+                i += 1;
+            };
+
+            // Clear player's balance and properties
+            let mut updated_player = player.clone();
+            updated_player.balance = 0;
+            updated_player.properties_owned = array![];
+            world.write_model(@updated_player);
+
+            println!(
+                "Player {:?} is bankrupt. Assets transferred to {:?}",
+                player.address,
+                property.owner,
+            );
+        }
+
+        fn vote_to_kick_player(
+            ref self: ContractState, game_id: u256, target_player: ContractAddress,
+        ) {
+            let mut world = self.world_default();
+            let caller = get_caller_address();
+
+            // Ensure caller is not voting for himself
+            assert!(caller != target_player, "You can't vote to kick yourself");
+
+            // Load target and caller players
+            let mut target: GamePlayer = world.read_model((target_player, game_id));
+            let caller_player: GamePlayer = world.read_model((caller, game_id));
+
+            // Ensure both are in the same game
+            assert!(target.game_id == game_id, "Not same game");
+
+            // Increase strike (can also implement vote tracking to prevent multiple votes)
+            target.strikes += 1;
+
+            // Save updated target player
+            world.write_model(@target);
+
+            // Count total players
+            let game: Game = world.read_model(game_id);
+            let total_players: u8 = game.number_of_players;
+            let strike_percent = (target.strikes * 100) / total_players;
+
+            // Kick if strikes >= 70%
+            if strike_percent >= 70 {
+                // Transfer all properties to the bank
+                let bank = get_contract_address();
+                let mut i = 0;
+                while i < target.properties_owned.len() {
+                    let prop_id = *target.properties_owned.at(i);
+                    let mut property: Property = world.read_model((prop_id, game_id));
+                    property.owner = bank;
+                    world.write_model(@property);
+                    i += 1;
+                };
+
+                // Clear player data
+                target.properties_owned = array![];
+                target.balance = 0;
+                target.strikes = 0;
+                // target.has_left = true;
+
+                // Save updated player
+                world.write_model(@target);
+            }
+        }
     }
 
     #[generate_trait]
@@ -984,8 +2065,8 @@ pub mod actions {
             let mut deck: Array<ByteArray> = array![];
 
             deck.append("Advance to Go (Collect $200)");
-            deck.append("Advance to Illinois Avenue - If you pass Go, collect $200");
-            deck.append("Advance to St. Charles Place - If you pass Go, collect $200");
+            deck.append("Advance to MakerDAO Avenue - If you pass Go, collect $200");
+            deck.append("Advance to Arbitrium Avenue - If you pass Go, collect $200");
             deck.append("Advance token to nearest Utility. Pay 10x dice.");
             deck.append("Advance token to nearest Railroad. Pay 2x rent.");
             deck.append("Bank pays you dividend of $50");
@@ -995,7 +2076,7 @@ pub mod actions {
             deck.append("Make general repairs - $25 house, $100 hotel");
             deck.append("Pay poor tax of $15");
             deck.append("Take a trip to Reading Railroad");
-            deck.append("Take a walk on the Boardwalk");
+            deck.append("Take a walk on the Bitcoin Lane");
             deck.append("Speeding fine $200");
             deck.append("Building loan matures - collect $150");
 
@@ -1130,32 +2211,6 @@ pub mod actions {
         }
 
 
-        fn generate_community_chest_deck(ref self: ContractState) -> Array<ByteArray> {
-            let mut deck: Array<ByteArray> = array![];
-
-            deck.append("Advance to Go (Collect $200)");
-            deck.append("Bank error in your favor - Collect $200");
-            deck.append("Doctor fee - Pay $50");
-            deck.append("From sale of stock - collect $50");
-            deck.append("Get Out of Jail Free");
-            deck.append("Go to Jail");
-            deck.append("Grand Opera Night - collect $50 from every player");
-            deck.append("Holiday Fund matures - Receive $100");
-            deck.append("Income tax refund - Collect $20");
-            deck.append("Life insurance matures - Collect $100");
-            deck.append("Pay hospital fees of $100");
-            deck.append("Pay school fees of $150");
-            deck.append("Receive $25 consultancy fee");
-            deck.append("Street repairs - $40 per house, $115 per hotel");
-            deck.append("Won second prize in beauty contest - Collect $10");
-            deck.append("You inherit $100");
-
-            // self.shuffle_array(deck);
-
-            deck
-        }
-
-
         fn generate_board_tiles(ref self: ContractState, game_id: u256) {
             let mut world = self.world_default();
             let contract_address = get_contract_address();
@@ -1163,7 +2218,7 @@ pub mod actions {
 
             self
                 .generate_properties(
-                    1,
+                    0,
                     game_id,
                     'Go',
                     0,
@@ -1181,7 +2236,7 @@ pub mod actions {
                 );
             self
                 .generate_properties(
-                    2,
+                    1,
                     game_id,
                     'Axone Avenue',
                     60,
@@ -1199,7 +2254,7 @@ pub mod actions {
                 );
             self
                 .generate_properties(
-                    3,
+                    2,
                     game_id,
                     'Community Chest',
                     0,
@@ -1217,7 +2272,7 @@ pub mod actions {
                 );
             self
                 .generate_properties(
-                    4,
+                    3,
                     game_id,
                     'Onlydust Avenue',
                     60,
@@ -1231,6 +2286,24 @@ pub mod actions {
                     50,
                     false,
                     1,
+                    bank.address,
+                );
+            self
+                .generate_properties(
+                    4,
+                    game_id,
+                    'Luxury Tax',
+                    100,
+                    PropertyType::Tax,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    0,
                     bank.address,
                 );
             self
@@ -1251,6 +2324,7 @@ pub mod actions {
                     0,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     6,
@@ -1323,6 +2397,7 @@ pub mod actions {
                     2,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     10,
@@ -1341,7 +2416,6 @@ pub mod actions {
                     0,
                     bank.address,
                 );
-
             self
                 .generate_properties(
                     11,
@@ -1400,18 +2474,18 @@ pub mod actions {
                 .generate_properties(
                     14,
                     game_id,
-                    'Community Chest',
-                    0,
-                    PropertyType::CommunityChest,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
+                    'Base Avenue',
+                    160,
+                    PropertyType::Property,
+                    12,
+                    60,
+                    180,
+                    500,
+                    700,
+                    900,
+                    100,
                     false,
-                    0,
+                    3,
                     bank.address,
                 );
             self
@@ -1432,31 +2506,32 @@ pub mod actions {
                     0,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     16,
                     game_id,
-                    'Base Avenue',
-                    160,
+                    'Near Lane',
+                    200,
                     PropertyType::Property,
-                    12,
-                    60,
-                    180,
-                    500,
-                    700,
-                    900,
+                    14,
+                    70,
+                    200,
+                    550,
+                    750,
+                    950,
                     100,
                     false,
-                    3,
+                    4,
                     bank.address,
                 );
             self
                 .generate_properties(
                     17,
                     game_id,
-                    'Chance',
+                    'Community Chest',
                     0,
-                    PropertyType::Chance,
+                    PropertyType::CommunityChest,
                     0,
                     0,
                     0,
@@ -1504,6 +2579,7 @@ pub mod actions {
                     4,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     20,
@@ -1522,32 +2598,31 @@ pub mod actions {
                     0,
                     bank.address,
                 );
-
             self
                 .generate_properties(
                     21,
                     game_id,
-                    'Near Lane',
-                    200,
-                    PropertyType::Property,
-                    16,
-                    80,
+                    'Dune Lane',
                     220,
-                    600,
-                    800,
-                    1000,
-                    100,
+                    PropertyType::Property,
+                    18,
+                    90,
+                    250,
+                    700,
+                    875,
+                    1050,
+                    150,
                     false,
-                    4,
+                    5,
                     bank.address,
                 );
             self
                 .generate_properties(
                     22,
                     game_id,
-                    'Community Chest',
+                    'Chance',
                     0,
-                    PropertyType::CommunityChest,
+                    PropertyType::Chance,
                     0,
                     0,
                     0,
@@ -1582,14 +2657,14 @@ pub mod actions {
                     24,
                     game_id,
                     'MakerDAO Avenue',
-                    220,
+                    240,
                     PropertyType::Property,
-                    18,
-                    90,
-                    250,
-                    700,
-                    875,
-                    1050,
+                    20,
+                    100,
+                    300,
+                    750,
+                    925,
+                    1100,
                     150,
                     false,
                     5,
@@ -1613,22 +2688,23 @@ pub mod actions {
                     0,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     26,
                     game_id,
                     'Aave Avenue',
-                    240,
+                    260,
                     PropertyType::Property,
-                    20,
-                    100,
-                    300,
-                    750,
-                    925,
-                    1100,
+                    22,
+                    110,
+                    330,
+                    800,
+                    975,
+                    1150,
                     150,
                     false,
-                    5,
+                    6,
                     bank.address,
                 );
             self
@@ -1671,20 +2747,21 @@ pub mod actions {
                 .generate_properties(
                     29,
                     game_id,
-                    'Chance',
-                    0,
-                    PropertyType::Chance,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
+                    'Rootstock Lane',
+                    260,
+                    PropertyType::Property,
+                    22,
+                    110,
+                    330,
+                    800,
+                    975,
+                    1150,
+                    150,
                     false,
-                    0,
+                    6,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     30,
@@ -1703,23 +2780,22 @@ pub mod actions {
                     0,
                     bank.address,
                 );
-
             self
                 .generate_properties(
                     31,
                     game_id,
                     'Rootstock Lane',
-                    260,
+                    300,
                     PropertyType::Property,
-                    22,
-                    110,
-                    330,
-                    800,
-                    975,
-                    1150,
-                    150,
+                    26,
+                    130,
+                    390,
+                    900,
+                    1100,
+                    1275,
+                    200,
                     false,
-                    6,
+                    7,
                     bank.address,
                 );
             self
@@ -1729,15 +2805,15 @@ pub mod actions {
                     'Ark Lane',
                     280,
                     PropertyType::Property,
-                    24,
-                    120,
-                    360,
-                    850,
-                    1025,
-                    1200,
-                    150,
+                    26,
+                    130,
+                    390,
+                    900,
+                    1100,
+                    1275,
+                    200,
                     false,
-                    6,
+                    7,
                     bank.address,
                 );
             self
@@ -1794,6 +2870,7 @@ pub mod actions {
                     0,
                     bank.address,
                 );
+
             self
                 .generate_properties(
                     36,
@@ -1817,17 +2894,17 @@ pub mod actions {
                     37,
                     game_id,
                     'Solana Drive',
-                    300,
+                    350,
                     PropertyType::Property,
-                    26,
-                    130,
-                    390,
-                    900,
+                    35,
+                    175,
+                    500,
                     1100,
-                    1275,
+                    1300,
+                    1500,
                     200,
                     false,
-                    7,
+                    8,
                     bank.address,
                 );
             self
@@ -1853,24 +2930,6 @@ pub mod actions {
                     39,
                     game_id,
                     'Ethereum Avenue',
-                    320,
-                    PropertyType::Property,
-                    28,
-                    150,
-                    450,
-                    1000,
-                    1200,
-                    1400,
-                    200,
-                    false,
-                    7,
-                    bank.address,
-                );
-            self
-                .generate_properties(
-                    40,
-                    game_id,
-                    'Bitcoin Lane',
                     400,
                     PropertyType::Property,
                     50,
@@ -1886,6 +2945,31 @@ pub mod actions {
                 );
         }
 
+
+        fn generate_community_chest_deck(ref self: ContractState) -> Array<ByteArray> {
+            let mut deck: Array<ByteArray> = array![];
+
+            deck.append("Advance to Go (Collect $200)");
+            deck.append("Bank error in your favor - Collect $200");
+            deck.append("Doctor fee - Pay $50");
+            deck.append("From sale of stock - collect $50");
+            deck.append("Get Out of Jail Free");
+            deck.append("Go to Jail");
+            deck.append("Grand Opera Night - collect $50 from every player");
+            deck.append("Holiday Fund matures - Receive $100");
+            deck.append("Income tax refund - Collect $20");
+            deck.append("Life insurance matures - Collect $100");
+            deck.append("Pay hospital fees of $100");
+            deck.append("Pay school fees of $150");
+            deck.append("Receive $25 consultancy fee");
+            deck.append("Street repairs - $40 per house, $115 per hotel");
+            deck.append("Won second prize in beauty contest - Collect $10");
+            deck.append("You inherit $100");
+
+            // self.shuffle_array(deck);
+
+            deck
+        }
 
         fn try_join_symbol(
             ref self: ContractState,
@@ -2139,6 +3223,50 @@ pub mod actions {
             world.write_model(@game_counter);
             new_val
         }
+
+        fn create_trade_id(ref self: ContractState) -> u256 {
+            let mut world = self.world_default();
+            let mut trade_counter: TradeCounter = world.read_model('v0');
+            let new_val = trade_counter.current_val + 1;
+            trade_counter.current_val = new_val;
+            world.write_model(@trade_counter);
+            new_val
+        }
+
+
+        fn property_transfer(
+            ref self: ContractState,
+            mut initiator_property: Property,
+            mut initiator: GamePlayer,
+            mut receiver: GamePlayer,
+        ) -> (GamePlayer, GamePlayer, Property) {
+            let mut world = self.world_default();
+            assert(initiator_property.game_id == receiver.game_id, 'Not in the same Game');
+
+            // Update property owner
+            initiator_property.owner = receiver.address;
+
+            // Build new properties array excluding the transferred property
+            let mut new_properties = array![];
+            let mut i = 0;
+            while (i < initiator.properties_owned.len()) {
+                let prop_id = *initiator.properties_owned[i];
+                let prop = self.get_property(prop_id, initiator.game_id);
+                if prop.id != initiator_property.id {
+                    new_properties.append(prop.id);
+                }
+                i += 1;
+            };
+            initiator.properties_owned = new_properties;
+
+            // Add property to receiver's properties
+            receiver.properties_owned.append(initiator_property.id);
+
+            world.write_model(@initiator);
+            world.write_model(@receiver);
+            world.write_model(@initiator_property);
+
+            (initiator, receiver, initiator_property)
+        }
     }
 }
-
