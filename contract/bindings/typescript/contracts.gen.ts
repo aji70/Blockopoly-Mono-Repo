@@ -319,7 +319,7 @@ export function setupWorld(provider: DojoProvider) {
 			calldata: [username],
 		};
 	};
-
+CreateGame
 	const player_registerNewPlayer = async (snAccount: Account | AccountInterface, username: BigNumberish) => {
 		try {
 			return await provider.execute(
