@@ -198,9 +198,7 @@ pub mod property {
             // Basic checks
             let zero_address: ContractAddress = contract_address_const::<0>();
 
-            if property.owner == zero_address {
-                return false; // Property is unowned, no rent to pay
-            }
+            assert(property.owner != zero_address, 'no rent needed');
             assert(property.owner != caller, 'Cannot pay rent to yourself');
             assert(player.position == property.id, 'Not on property');
             assert(!property.is_mortgaged, 'No rent on mortgaged');

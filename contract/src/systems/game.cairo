@@ -219,6 +219,11 @@ pub mod game {
             let game_id = self.create_new_game_id();
             let timestamp = get_block_timestamp();
 
+             let mut player: GamePlayer = world.read_model((caller_address, game_id));
+             assert(!player.joined, 'player already joined');
+             player.joined = true;
+             world.write_model(@player);
+
             // Initialize player symbols
             let (
                 player_hat,
@@ -432,6 +437,12 @@ pub mod game {
         ) {
             let mut world = self.world_default();
             let game: Game = world.read_model(game_id);
+            let caller_address = get_caller_address();
+            
+             let mut player: GamePlayer = world.read_model((caller_address, game_id));
+             assert(!player.joined, 'player already joined');
+             player.joined = true;
+             world.write_model(@player);
 
             assert(game.player_hat != username, 'ALREADY SELECTED HAT');
             assert(game.player_car != username, 'ALREADY SELECTED CAR');
