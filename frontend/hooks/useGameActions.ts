@@ -9,8 +9,8 @@ export function useGameActions() {
     return client.game.createGame(account, gameType, playerSymbol, numPlayers);
   }, [client]);
 
-  const joinGame = useCallback((account: Account | AccountInterface, gameId: BigNumberish, playerSymbol: BigNumberish) => {
-    return client.game.joinGame(account, gameId, playerSymbol);
+  const joinGame = useCallback((account: Account | AccountInterface, playerSymbol: BigNumberish, gameId: BigNumberish) => {
+    return client.game.joinGame(account, playerSymbol, gameId);
   }, [client]);
 
   const startGame = useCallback((account: Account | AccountInterface, gameId: BigNumberish) => {

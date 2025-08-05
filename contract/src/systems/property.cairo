@@ -186,6 +186,8 @@ pub mod property {
             let mut property: Property = world.read_model((property_id, game_id));
             assert(property.id == property_id, 'Property not found');
 
+            assert((property.property_type == PropertyType::Property || property.property_type == PropertyType::RailRoad), 'not property');
+
             let mut player: GamePlayer = world.read_model((caller, game_id));
             let mut owner: GamePlayer = world.read_model((property.owner, game_id));
 

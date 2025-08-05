@@ -5,6 +5,8 @@ import { useDojoSDK } from "@dojoengine/sdk/react";
 export function useMovementActions() {
   const { client } = useDojoSDK();
 
+  console.log(client);
+
   const movePlayer = useCallback((account: Account | AccountInterface, gameId: BigNumberish, steps: BigNumberish) => {
     return client.movement.movePlayer(account, gameId, steps);
   }, [client]);
@@ -29,6 +31,19 @@ export function useMovementActions() {
     return client.movement.currentPlayername(gameId);
   }, [client]);
 
+  const processCommunityChestCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+    return client.movement.processCommunityChestCard(account, gameId, card);
+  }, [client]);
+
+  const processChanceCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+    return client.movement.processChanceCard(account, gameId, card);
+  }, [client]);
+  
+   const payTax = useCallback((account: Account | AccountInterface, taxId: BigNumberish, gameId: BigNumberish) => {
+    return client.movement.payTax(account, taxId, gameId);
+  }, [client]);
+  
+
   return {
     movePlayer,
     payJailFine,
@@ -36,5 +51,8 @@ export function useMovementActions() {
     payGetoutOfJailCommunity,
     getCurrentPlayer,
     getCurrentPlayerName,
+    processCommunityChestCard,
+    processChanceCard,
+    payTax
   };
 }

@@ -23,7 +23,8 @@ export default function WasmDemo() {
 
   const [fields, setFields] = useState({
     username: '', addressp: '', gameType: '', playerSymbol: '',
-    numPlayers: '', gameId: '', amount: '', diceRoll: '', propertyId: ''
+    numPlayers: '', gameId: '', amount: '', diceRoll: '', propertyId: '',
+    card: ''
   });
 
   const [response, setResponse] = useState<any>(null);
@@ -61,7 +62,7 @@ export default function WasmDemo() {
     { label: 'Get Username', onClick: () => handleRequest(() => player.getUsernameFromAddress(fields.addressp), 'getUsername') },
     { label: 'Retrieve Player', onClick: () => handleRequest(() => player.retrievePlayer(fields.addressp), 'retrievePlayer') },
     { label: 'Create Game', onClick: () => account && handleRequest(() => game.createGame(account, +fields.gameType, +fields.playerSymbol, +fields.numPlayers), 'createGame') },
-    { label: 'Join Game', onClick: () => account && handleRequest(() => game.joinGame(account, +fields.gameId, +fields.playerSymbol), 'joinGame') },
+    { label: 'Join Game', onClick: () => account && handleRequest(() => game.joinGame(account, +fields.playerSymbol, +fields.gameId), 'joinGame') },
     { label: 'Start Game', onClick: () => account && handleRequest(() => game.startGame(account, +fields.gameId), 'startGame') },
     { label: 'Get Game', onClick: () => handleRequest(() => game.getGame(+fields.gameId), 'getGame') },
     { label: 'Retrieve Game Player', onClick: () => handleRequest(() => game.getPlayer(fields.addressp, +fields.gameId), 'getPlayer') },
@@ -75,12 +76,18 @@ export default function WasmDemo() {
     { label: 'Current Player Name', onClick: () => account && handleRequest(() => move.getCurrentPlayerName(+fields.gameId), 'currentPlayerName') },
     { label: 'Buy Property', onClick: () => account && handleRequest(() => property.buyProperty(account, +fields.propertyId, +fields.gameId), 'buyProperty') },
     { label: 'End Game', onClick: () => account && handleRequest(() => game.endGame(account, +fields.gameId), 'endGame') },
+    { label: 'Get Property', onClick:() => account && handleRequest(() => property.getProperty(+fields.propertyId, +fields.gameId), 'getProperty')},
+    { label: ' Finish Turn', onClick:() => account && handleRequest(()=> property.finishTurn(account, +fields.gameId), 'finishTurn')},
+    { label: 'Pay Rent', onClick:() => account && handleRequest(() => property.payRent(account, +fields.propertyId, +fields.gameId), 'payRent')},
+    { label: 'Process Community', onClick:() => account && handleRequest(() => move.processCommunityChestCard(account, +fields.gameId, fields.card), 'processCommunityChestCard')},
+    { label: 'Process Chance', onClick:() => account && handleRequest(() => move.processChanceCard(account, +fields.gameId, fields.card), 'processChanceCard')},
+    { label: 'Pay Tax', onClick: () => account && handleRequest(() => move.payTax(account, +fields.propertyId, +fields.gameId), 'payTax')},
   ];
 
   return (
 <main className="max-w-7xl mx-auto px-4 py-8 space-y-10">
   <h1 className="text-4xl font-bold text-center text-blue-400">
-    Wasm Monopoly Demo
+    Blockopoly Demo
   </h1>
 
   <div className="text-center text-sm text-gray-400">
@@ -102,6 +109,9 @@ export default function WasmDemo() {
           { name: 'amount', label: 'Amount' },
           { name: 'diceRoll', label: 'Dice Roll' },
           { name: 'propertyId', label: 'Property ID' },
+          { name: 'card', label: 'Card' },
+
+          
         ].map(({ name, label }) => (
           <div key={name} className="flex flex-col">
             <label className="text-sm text-gray-300 mb-1">{label}</label>
