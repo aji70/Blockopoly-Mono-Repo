@@ -119,7 +119,7 @@ pub trait PropertyTrait {
         owner: ContractAddress,
     ) -> Property;
     fn get_rent_amount(
-        self: @Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
+        self: Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
     ) -> u256;
     fn calculate_utility_rent(self: @Property, no_of_utilities: u8, dice_rolled: u256) -> u256;
     fn calculate_railway_rent(self: @Property, no_of_railways: u8) -> u256;
@@ -172,22 +172,22 @@ impl PropertyImpl of PropertyTrait {
         }
     }
     fn get_rent_amount(
-        self: @Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
+        self: Property, owner_railroads: u8, owner_utilities: u8, dice_rolled: u256,
     ) -> u256 {
-        if *self.is_mortgaged {
+        if self.is_mortgaged {
             return 0;
         }
 
-        match *self.property_type {
+        match self.property_type {
             PropertyType::Property => {
-                match *self.development {
-                    0 => *self.rent_site_only,
-                    1 => *self.rent_one_house,
-                    2 => *self.rent_two_houses,
-                    3 => *self.rent_three_houses,
-                    4 => *self.rent_four_houses,
-                    5 => *self.rent_hotel,
-                    _ => *self.rent_site_only,
+                match self.development {
+                    0 => self.rent_site_only,
+                    1 => self.rent_one_house,
+                    2 => self.rent_two_houses,
+                    3 => self.rent_three_houses,
+                    4 => self.rent_four_houses,
+                    5 => self.rent_hotel,
+                    _ => self.rent_site_only,
                 }
             },
             PropertyType::RailRoad => {

@@ -58,14 +58,17 @@ pub mod property {
             assert(player.position == property.id, 'wrong property');
             if (property.owner != zero_address) {
                 assert(property.owner != caller, 'already own property');
-                assert(player.game_id == owner.game_id, 'Not same game');
+            //     assert(player.game_id == owner.game_id, 'Not same game');
                 assert(property.for_sale, 'Property not for sale');
             }
             assert(player.balance >= property.cost_of_property, 'insufficient funds');
 
             // Transfer funds
             player.balance -= property.cost_of_property;
-            owner.balance += property.cost_of_property;
+
+            if property.owner != zero_address {
+                owner.balance += property.cost_of_property;
+            }            
 
             // Transfer ownership
             property.owner = caller;
@@ -93,7 +96,7 @@ pub mod property {
             }
 
             // Finish turn
-            found_game = self.finish_turn(found_game.id);
+            // found_game = self.finish_turn(found_game.id);
 
             // Persist changes
             world.write_model(@found_game);
@@ -214,8 +217,10 @@ pub mod property {
             player.balance -= rent_amount;
             owner.balance += rent_amount;
 
+            player.paid_rent = true;
+
             // Finish turn and persist
-            game = self.finish_turn(game.id);
+            // game = self.finish_turn(game.id);
 
             world.write_model(@game);
             world.write_model(@player);
@@ -319,6 +324,8 @@ pub mod property {
             let mut current_index = 0;
             let mut game: Game = world.read_model(game_id);
             let players_len = game.game_players.len();
+            let mut player: GamePlayer = world.read_model((caller, game_id));
+            assert!(player.paid_rent, "Pay your rent");
 
             while index < players_len {
                 let player = game.game_players.at(index);
