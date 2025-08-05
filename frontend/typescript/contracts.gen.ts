@@ -236,6 +236,69 @@ export function setupWorld(provider: DojoProvider) {
 		}
 	};
 
+	const build_movement_payTax_calldata = (taxId: BigNumberish, gameId: BigNumberish): DojoCall => {
+		return {
+			contractName: "movement",
+			entrypoint: "pay_tax",
+			calldata: [taxId, gameId],
+		};
+	};
+
+	const movement_payTax = async (snAccount: Account | AccountInterface, taxId: BigNumberish, gameId: BigNumberish) => {
+		try {
+			return await provider.execute(
+				snAccount,
+				build_movement_payTax_calldata(taxId, gameId),
+				"blockopoly",
+			);
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
+	const build_movement_processChanceCard_calldata = (gameId: BigNumberish, card: string): DojoCall => {
+		return {
+			contractName: "movement",
+			entrypoint: "process_chance_card",
+			calldata: [gameId, card],
+		};
+	};
+
+	const movement_processChanceCard = async (snAccount: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+		try {
+			return await provider.execute(
+				snAccount,
+				build_movement_processChanceCard_calldata(gameId, card),
+				"blockopoly",
+			);
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
+	const build_movement_processCommunityChestCard_calldata = (gameId: BigNumberish, card: string): DojoCall => {
+		return {
+			contractName: "movement",
+			entrypoint: "process_community_chest_card",
+			calldata: [gameId, card],
+		};
+	};
+
+	const movement_processCommunityChestCard = async (snAccount: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+		try {
+			return await provider.execute(
+				snAccount,
+				build_movement_processCommunityChestCard_calldata(gameId, card),
+				"blockopoly",
+			);
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
 	const build_movement_useGetoutOfJailChance_calldata = (gameId: BigNumberish): DojoCall => {
 		return {
 			contractName: "movement",
@@ -666,6 +729,12 @@ export function setupWorld(provider: DojoProvider) {
 			buildMovePlayerCalldata: build_movement_movePlayer_calldata,
 			payJailFine: movement_payJailFine,
 			buildPayJailFineCalldata: build_movement_payJailFine_calldata,
+			payTax: movement_payTax,
+			buildPayTaxCalldata: build_movement_payTax_calldata,
+			processChanceCard: movement_processChanceCard,
+			buildProcessChanceCardCalldata: build_movement_processChanceCard_calldata,
+			processCommunityChestCard: movement_processCommunityChestCard,
+			buildProcessCommunityChestCardCalldata: build_movement_processCommunityChestCard_calldata,
 			useGetoutOfJailChance: movement_useGetoutOfJailChance,
 			buildUseGetoutOfJailChanceCalldata: build_movement_useGetoutOfJailChance_calldata,
 			useGetoutOfJailCommunityChest: movement_useGetoutOfJailCommunityChest,

@@ -77,6 +77,7 @@ export interface GamePlayer {
 	is_active: boolean;
 	jail_turns: BigNumberish;
 	strikes: BigNumberish;
+	paid_rent: boolean;
 }
 
 // Type definition for `blockopoly::model::player_model::AddressToUsername` struct
@@ -369,6 +370,7 @@ export const schema: SchemaType = {
 			is_active: false,
 			jail_turns: 0,
 			strikes: 0,
+			paid_rent: false,
 		},
 		AddressToUsername: {
 			address: "",

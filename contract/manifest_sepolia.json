@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x23db60a70f3ee89243307ea0e33532d3f3a26ad852769b77aa0a8448a463960",
-    "seed": "asfad",
+    "address": "0x12c95f807bafab2d9df6b557263508387aa291cbe2087ec880444134d27ec6e",
+    "seed": "dianacomfort",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,8 +1328,8 @@
   },
   "contracts": [
     {
-      "address": "0x46de3823bc197786d91ed7fe688095a8546f73c501f8a92895be3ec456aee72",
-      "class_hash": "0x5bec0981dfb09ffea1da9fec7d80d971453e899ffc949e8d3341e301376456",
+      "address": "0x1debcaaaa19e04a33f8a9bc243c5e7870b3c4569fc1745000140c8e73aad846",
+      "class_hash": "0x62581fcc4ecd8c8c839447bce029c58d76f505fa691f52f3911ab49fae04596",
       "abi": [
         {
           "type": "impl",
@@ -1745,6 +1745,10 @@
             {
               "name": "strikes",
               "type": "core::integer::u8"
+            },
+            {
+              "name": "paid_rent",
+              "type": "core::bool"
             }
           ]
         },
@@ -2030,8 +2034,8 @@
       ]
     },
     {
-      "address": "0x391596efc1f3f87a3b6fb17cad2717b0d5b7d06e91f2b82fc5420e41d6af07e",
-      "class_hash": "0x5417ee77d0ca2d5ee7c44f33c6faad8fe8d34c7155656268bfcc5aaabdabc68",
+      "address": "0x691ebb6faa186b3b57fb63b9653c1b16a5ef36c6aa25e50e2049de5db73696e",
+      "class_hash": "0x20f4648f7237bde5c8f311ab84995bc0b01796b75e72fdc5ff5bd1737cfd126",
       "abi": [
         {
           "type": "impl",
@@ -2219,6 +2223,66 @@
                 }
               ],
               "state_mutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "process_community_chest_card",
+              "inputs": [
+                {
+                  "name": "game_id",
+                  "type": "core::integer::u256"
+                },
+                {
+                  "name": "card",
+                  "type": "core::byte_array::ByteArray"
+                }
+              ],
+              "outputs": [
+                {
+                  "type": "core::bool"
+                }
+              ],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "process_chance_card",
+              "inputs": [
+                {
+                  "name": "game_id",
+                  "type": "core::integer::u256"
+                },
+                {
+                  "name": "card",
+                  "type": "core::byte_array::ByteArray"
+                }
+              ],
+              "outputs": [
+                {
+                  "type": "core::bool"
+                }
+              ],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "pay_tax",
+              "inputs": [
+                {
+                  "name": "tax_id",
+                  "type": "core::integer::u8"
+                },
+                {
+                  "name": "game_id",
+                  "type": "core::integer::u256"
+                }
+              ],
+              "outputs": [
+                {
+                  "type": "core::bool"
+                }
+              ],
+              "state_mutability": "external"
             }
           ]
         },
@@ -2345,11 +2409,14 @@
         "pay_jail_fine",
         "use_getout_of_jail_chance",
         "use_getout_of_jail_community_chest",
+        "process_community_chest_card",
+        "process_chance_card",
+        "pay_tax",
         "upgrade"
       ]
     },
     {
-      "address": "0x7e8d475eca443a04847c0900b06e0bafef94c13276eb4d6f987dfcf9485494b",
+      "address": "0x25b086a7319f1adb6dc8dae185d98e00ef9c3a131970fb29c4e3505584d060d",
       "class_hash": "0x2c35b79d2c5300a7d4ae492cc3094ddcb77611795eb97288067a334487b961f",
       "abi": [
         {
@@ -2667,8 +2734,8 @@
       ]
     },
     {
-      "address": "0x62a1f20f26738110bdf514d417696122976b355b2fad0ad503305b5efc52c3",
-      "class_hash": "0x3597f654d3aaa0e4f5c5ee71ef7349a5cbc038631d65ca2fce9334f4d883c3f",
+      "address": "0x3a35233531f92fb0314700c08e7c12ffddbd08490fabeb19b198c6b47b9b457",
+      "class_hash": "0x1ae3d614e791beefc736cd4ba003f1c6a1cc093883f0b8dd80987d76e04ca9a",
       "abi": [
         {
           "type": "impl",
@@ -3347,8 +3414,8 @@
       ]
     },
     {
-      "address": "0x4c74c3c6f0b121515b333473b88476495a79b6e8802258640295f1511a18092",
-      "class_hash": "0x15765487e068bf3bf9f8edd35c92c467d827bde2ddc8495b52bd6a74e536947",
+      "address": "0x3bef8271fce5e3625d768b1125c1e53a8bc9ad0ed0a1f03a9ba128271cd9a4c",
+      "class_hash": "0x28302ab3dbf0752f0cd8cd16b887d233b34476d8fb11ff0f5a02d1e3cc0fe40",
       "abi": [
         {
           "type": "impl",
@@ -3859,7 +3926,7 @@
     },
     {
       "members": [],
-      "class_hash": "0x510d0c5d901a2a131066c862fef00b83f9b9bbafcfb49cf2899eb563634aa92",
+      "class_hash": "0x55ee7da2afc2e18173d476fb77cdeb16da38b98f9aa74bdf52adf489fb96a6a",
       "tag": "blockopoly-GamePlayer",
       "selector": "0x2048a0e5df9a34115f15e73141a2775346e2d23185045d77f408d24be71074"
     },
