@@ -32,10 +32,11 @@ console.log("client", client);
   );
 
   const movePlayer = useCallback(
-    async (gameId: BigNumberish, steps: BigNumberish) => {
+    async (account: Account | AccountInterface, gameId: BigNumberish, steps: BigNumberish) => {
       try {
         if (!client || !client.game) return alert("No client found");
         return await client.movement.movePlayer(
+          account,
           gameId,
           steps
         );
