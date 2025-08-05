@@ -6,7 +6,7 @@ import { useAccount, useConnect, useDisconnect } from '@starknet-react/core';
 import { usePlayer } from '@/hooks/index';
 
 export default function WasmDemo() {
-  const { address } = useAccount();
+  const { account, address } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { register, getPlayer, createGame, getGame, movePlayer } = usePlayer(address);
@@ -69,7 +69,8 @@ export default function WasmDemo() {
   };
 
   const handleMovePlayer = () => {
-    handleRequest(() => movePlayer(Number(gameId), Number(diceRoll)), 'move_player');
+    if (!account) return;
+    handleRequest(() => movePlayer(account, Number(gameId), Number(diceRoll)), 'move_player');
   };
 
   const handleBuyProperty = () => {
