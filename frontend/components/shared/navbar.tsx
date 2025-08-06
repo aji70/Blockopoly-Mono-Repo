@@ -189,6 +189,7 @@ const NavBar = () => {
 
             </header>
 
+
             <WalletConnectModal
                 isOpen={isConnectModalOpen}
                 onClose={() => setIsConnectModalOpen(false)}

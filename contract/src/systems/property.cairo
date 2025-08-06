@@ -219,10 +219,7 @@ pub mod property {
 
             player.paid_rent = true;
 
-            // Finish turn and persist
-            // game = self.finish_turn(game.id);
-
-            world.write_model(@game);
+              world.write_model(@game);
             world.write_model(@player);
             world.write_model(@owner);
             world.write_model(@property);

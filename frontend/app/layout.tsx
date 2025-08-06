@@ -34,7 +34,10 @@ export default function RootLayout({
         <DojoProvider>
           <StarknetProvider>
             <WalletProvider>
-               <WasmDemo />
+              <NavBar />
+               {/* <WasmDemo /> */}
+               {children}
+               <ScrollToTopBtn />
             </WalletProvider>
           </StarknetProvider>
         </DojoProvider>

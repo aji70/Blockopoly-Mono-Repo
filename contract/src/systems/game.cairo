@@ -1,6 +1,6 @@
 use blockopoly::model::game_model::{Game, GameCounter, GameStatus, GameTrait, GameType};
 use blockopoly::model::game_player_model::{GamePlayer, PlayerSymbol};
-use blockopoly::model::player_model::{AddressToUsername, Player};
+use blockopoly::model::player_model::{AddressToUsername, Player, IsRegistered};
 use blockopoly::model::property_model::{
     IdToProperty, Property, PropertyToId, PropertyTrait, PropertyType,
 };
@@ -34,7 +34,7 @@ pub mod game {
     };
     use super::{
         AddressToUsername, Game, GameCounter, GamePlayer, GameStatus, GameTrait, GameType, IGame,
-        IdToProperty, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait, PropertyType,
+        IdToProperty, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait, PropertyType, IsRegistered
     };
 
     #[derive(Copy, Drop, Serde)]
@@ -77,6 +77,12 @@ pub mod game {
         fn create_game(
             ref self: ContractState, game_type: u8, player_symbol: u8, number_of_players: u8,
         ) -> u256 {
+
+               // Get default world
+            let mut world = self.world_default();
+            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            assert(is_registered.is_registered, 'not registered');
+
             let player_symbol_enum = match player_symbol {
                 0 => PlayerSymbol::Hat,
                 1 => PlayerSymbol::Car,
@@ -101,6 +107,12 @@ pub mod game {
         }
 
         fn join_game(ref self: ContractState, player_symbol: u8, game_id: u256) {
+               // Get default world
+            let mut world = self.world_default();
+
+            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            assert(is_registered.is_registered, 'not registered');
+
             let player_symbol_enum = match player_symbol {
                 0 => PlayerSymbol::Hat,
                 1 => PlayerSymbol::Car,
@@ -117,7 +129,11 @@ pub mod game {
         }
 
         fn start_game(ref self: ContractState, game_id: u256) -> bool {
+
             let mut world = self.world_default();
+            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            assert(is_registered.is_registered, 'not registered');
+
             let mut game: Game = world.read_model(game_id);
 
             assert(game.status == GameStatus::Pending, 'GAME NOT PENDING');
@@ -137,13 +153,23 @@ pub mod game {
 
         fn mint(ref self: ContractState, recepient: ContractAddress, game_id: u256, amount: u256) {
             let mut world = self.world_default();
+
+            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            assert(is_registered.is_registered, 'not registered');
+
             let mut player: GamePlayer = world.read_model((recepient, game_id));
             player.balance += amount;
             world.write_model(@player);
         }
 
         fn end_game(ref self: ContractState, game_id: u256) -> ContractAddress {
+
+            
             let mut world = self.world_default();
+            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            assert(is_registered.is_registered, 'not registered');
+
+        
             let mut players: Array<GamePlayer> = ArrayTrait::new();
 
             let mut game: Game = world.read_model(game_id);
@@ -358,13 +384,19 @@ pub mod game {
             game.players_joined = self.count_joined_players(game.id);
             game.game_players.append(get_caller_address());
 
-            // Start the game if all players have joined
-            if game.players_joined == game.number_of_players {
-                game.status = GameStatus::Ongoing;
-                world.emit_event(@GameStarted { game_id, timestamp: get_block_timestamp() });
-            }
-
-            // Persist the updated game state
+                 let mut player: GamePlayer = world.read_model((caller_address, game_id));
+             assert(!player.joined, 'player already joined');
+             player.joined = true;
+             
+             
+             // Start the game if all players have joined
+             if game.players_joined == game.number_of_players {
+                 game.status = GameStatus::Ongoing;
+                 world.emit_event(@GameStarted { game_id, timestamp: get_block_timestamp() });
+                }
+                
+                // Persist the updated game state
+            world.write_model(@player);
             world.write_model(@game);
         }
 
@@ -437,12 +469,6 @@ pub mod game {
         ) {
             let mut world = self.world_default();
             let game: Game = world.read_model(game_id);
-            let caller_address = get_caller_address();
-            
-             let mut player: GamePlayer = world.read_model((caller_address, game_id));
-             assert(!player.joined, 'player already joined');
-             player.joined = true;
-             world.write_model(@player);
 
             assert(game.player_hat != username, 'ALREADY SELECTED HAT');
             assert(game.player_car != username, 'ALREADY SELECTED CAR');

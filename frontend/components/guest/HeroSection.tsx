@@ -1,15 +1,64 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import herobg from "@/public/heroBg.png"
 import Image from 'next/image'
 import { Dices, KeyRound } from 'lucide-react'
 import { TypeAnimation } from 'react-type-animation';
 import { useRouter } from 'next/navigation'
+import Link from 'next/link';
+
+import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
+import { useAccount, useConnect, useDisconnect } from '@starknet-react/core';
+
+import { usePlayerActions } from '@/hooks/usePlayerActions';
+import { useGameActions } from '@/hooks/useGameActions';
+import { useMovementActions } from '@/hooks/useMovementActions';
+import { usePropertyActions } from '@/hooks/usePropertyActions';
+import { useTradeActions } from '@/hooks/useTradeActions';
 
 const HeroSection = () => {
-    const [gamerName, setGamerName] = useState('');
+     const { account, address } = useAccount();
+      const { connect, connectors } = useConnect();
+      const { disconnect } = useDisconnect();
+    
+      const player = usePlayerActions();
+      const game   = useGameActions();
+      const move   = useMovementActions();
+      const property = usePropertyActions();
+      const trade   = useTradeActions();
+    
+      const [fields, setFields] = useState({
+        username: '', addressp: '', gameType: '', playerSymbol: '',
+        numPlayers: '', gameId: '', amount: '', diceRoll: '', propertyId: '',
+        card: ''
+      });
+    
+      const [response, setResponse] = useState<any>(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+    
+      const handleRequest = async (fn: () => Promise<any>, label: string) => {
+        setLoading(true); setError(null); setResponse(null);
+        try {
+          const res = await fn();
+          console.log(label, res);
+          setResponse(res);
+        } catch (err: any) {
+          console.error(label, err);
+          setError(err?.message || 'Unknown error');
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      useEffect(() => {
+        if (isWasmSupported()) { getWasmCapabilities(); }
+      }, []);
 
-    const router = useRouter()
+      const router = useRouter()
+    const [gamerName, setGamerName] = useState('');
+   
+
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setGamerName(e.target.value);
@@ -105,12 +154,19 @@ const HeroSection = () => {
                                 strokeWidth={1}
                             />
                         </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] -tracking-[2%] font-orbitron font-[700] z-10">
+                        <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] -tracking-[2%] font-orbitron font-[700] z-10" onClick={
+                            () => 
+                            account && handleRequest(() => 
+                            player.register(account, gamerName), 
+                            'register') 
+                        
+                            
+                            }>
                             Let&apos;s Go!
                         </span>
                     </button>
 
-                    {/* join/create room */}
+                    {/* join/create room
                     <div className="flex justify-center items-center mt-2">
                         <button
                             type="button"
@@ -165,11 +221,12 @@ const HeroSection = () => {
                                 Create A Private Game
                             </span>
                         </button>
-                    </div>
+                    </div> */}
 
                 </div>
 
             </main>
+     
         </section>
     );
 }
