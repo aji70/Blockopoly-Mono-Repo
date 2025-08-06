@@ -3,7 +3,10 @@ import Image from 'next/image';
 import { BoardSquare } from "@/types/game";
 
 interface PropertyCardProps {
-    square: BoardSquare;
+  square: BoardSquare;
+  owner: string | null;
+  playerToken?: string;
+  isConnectedPlayer: boolean;
 }
 
 const PropertyCard = ({ square }: PropertyCardProps) => {
