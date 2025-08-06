@@ -248,6 +248,7 @@ pub mod game {
              let mut player: GamePlayer = world.read_model((caller_address, game_id));
              assert(!player.joined, 'player already joined');
              player.joined = true;
+             player.username = caller_username;
              world.write_model(@player);
 
             // Initialize player symbols
@@ -363,6 +364,8 @@ pub mod game {
             let caller_username1: AddressToUsername = world.read_model(caller_address);
             let caller_username = caller_username1.username;
 
+
+
             // Ensure the caller is a registered player
             assert(caller_username != 0, 'PLAYER NOT REGISTERED');
 
@@ -387,6 +390,7 @@ pub mod game {
                  let mut player: GamePlayer = world.read_model((caller_address, game_id));
              assert(!player.joined, 'player already joined');
              player.joined = true;
+             player.username = caller_username;
              
              
              // Start the game if all players have joined
@@ -396,6 +400,8 @@ pub mod game {
                 }
                 
                 // Persist the updated game state
+            
+            
             world.write_model(@player);
             world.write_model(@game);
         }
