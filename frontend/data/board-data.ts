@@ -728,7 +728,7 @@ export const boardData: BoardSquare[] = [
     color: "#00008B", // DarkBlue for Group 8
     position: "right",
     gridPosition: { row: 8, col: 11 },
-    icon: "/game/solana.svg",
+    icon: "/game/mexicocity.svg", 
   },
   {
     id: 38,
@@ -766,6 +766,6 @@ export const boardData: BoardSquare[] = [
     color: "#00008B", // DarkBlue for Group 8
     position: "right",
     gridPosition: { row: 10, col: 11 },
-    icon: "/game/ethereum.svg",
+    icon: "/game/mexicocity.svg",
   },
 ];
