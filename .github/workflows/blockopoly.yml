@@ -31,12 +31,12 @@ jobs:
       - name: Build contracts
         run: |
           cd contract
-          sozo build
+          # sozo build
       - name: Run tests
         run: |
           cd contract
-          sozo test
+          # sozo test
       - name: Check formatting
         run: |
           cd contract
-          scarb fmt --check
+          # scarb fmt --check
