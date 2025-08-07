@@ -269,6 +269,8 @@ pub mod movement {
                 player.balance += 100;
             }
 
+            player.paid_rent = true;
+
             // game = self.finish_turn(game);
             world.write_model(@player);
             world.write_model(@game);
@@ -360,6 +362,8 @@ pub mod movement {
             } else if card == "Building loan matures - collect $150" {
                 player.balance += 150;
             }
+
+            player.paid_rent = true;
             // game = self.finish_turn(game);
             world.write_model(@player);
             world.write_model(@game);

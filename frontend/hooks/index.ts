@@ -7,9 +7,10 @@ import {
   CairoCustomEnum,
 } from "starknet";
 import { stringToFelt } from "@/utils/starknet";
-// import { Player, Game } from "../typescript/models.gen";
-import { setupWorld } from "../../contract/bindings/typescript/contracts.gen";
-import {Player, Game} from "../../contract/bindings/typescript/models.gen"
+import { Player, Game } from "../typescript/models.gen";
+// import { setupWorld } from "../../contract/bindings/typescript/contracts.gen";
+import { setupWorld } from "../typescript/contracts.gen";
+// import {Player, Game} from "../../contract/bindings/typescript/models.gen"
 import { useDojoSDK } from "@dojoengine/sdk/react";
 import { steps } from "framer-motion";
 

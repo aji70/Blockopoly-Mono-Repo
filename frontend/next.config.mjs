@@ -21,6 +21,15 @@ const nextConfig = {
     // Add WASM rule to the beginning to ensure it takes precedence
     config.module.rules.unshift(wasmRule);
 
+    // Add rule for @dojoengine/torii-wasm JavaScript files
+    config.module.rules.push({
+      test: /@dojoengine[\\/]torii-wasm[\\/]pkg[\\/]web[\\/].*\.js$/,
+      type: 'javascript/auto',
+      resolve: {
+        fullySpecified: false,
+      },
+    });
+
     // Optimize WASM loading
     config.optimization = {
       ...config.optimization,

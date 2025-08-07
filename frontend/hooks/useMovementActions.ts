@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Account, AccountInterface, BigNumberish } from "starknet";
 import { useDojoSDK } from "@dojoengine/sdk/react";
+import { byteArray } from 'starknet';
 
 export function useMovementActions() {
   const { client } = useDojoSDK();
@@ -31,11 +32,11 @@ export function useMovementActions() {
     return client.movement.currentPlayername(gameId);
   }, [client]);
 
-  const processCommunityChestCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+  const processCommunityChestCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: any) => {
     return client.movement.processCommunityChestCard(account, gameId, card);
   }, [client]);
 
-  const processChanceCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: string) => {
+  const processChanceCard = useCallback((account: Account | AccountInterface, gameId: BigNumberish, card: any) => {
     return client.movement.processChanceCard(account, gameId, card);
   }, [client]);
   

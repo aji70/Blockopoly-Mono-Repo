@@ -2,7 +2,6 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { DojoSdkProvider } from '@dojoengine/sdk/react';
-
 import { dojoConfig } from '../dojoConfig';
 import { setupWorld } from '../typescript/contracts.gen';
 import { SchemaType } from '../typescript/models.gen';
@@ -23,7 +22,9 @@ export function DojoProvider({ children }: DojoProviderProps) {
         setError(null);
 
         // Dynamic import with error handling for WASM modules
+        console.log('Importing @dojoengine/sdk...');
         const { init } = await import('@dojoengine/sdk');
+        console.log('Successfully imported @dojoengine/sdk');
 
         const sdkInstance = await init<SchemaType>({
           client: {
@@ -58,31 +59,6 @@ export function DojoProvider({ children }: DojoProviderProps) {
       </div>
     );
   }
-
-//   if (error) {
-//     return (
-//       <div className="flex items-center justify-center min-h-screen">
-//         <div className="text-red-500">
-//           <h2 className="text-xl font-bold mb-2">Failed to load Dojo gfgfhfhfhfjfjgjgjgjgjgjgkg</h2>
-//           <p>{error}</p>
-//           <button
-//             onClick={() => window.location.reload()}
-//             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//           >
-//             Retry
-//           </button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (!sdk) {
-//     return (
-//       <div className="flex items-center justify-center min-h-screen">
-//         <div className="text-lg">Initializing...</div>
-//       </div>
-//     );
-//   }
 
   return (
     <DojoSdkProvider sdk={sdk} dojoConfig={dojoConfig} clientFn={setupWorld}>

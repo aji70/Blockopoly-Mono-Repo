@@ -12,8 +12,37 @@ import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useMovementActions } from '@/hooks/useMovementActions';
 import { usePropertyActions } from '@/hooks/usePropertyActions';
 import { useSearchParams } from 'next/navigation';
+import { shortString, byteArray } from 'starknet';
 
 const PLAYER_TOKENS = ['🎩', '🚗', '🐕', '🛩️', '🚀', '🐱', '🛥️', '⛵️'];
+
+const CHANCE_CARDS = [
+  "Advance to Go (Collect $200)",
+  "Advance to MakerDAO Avenue - If you pass Go, collect $200",
+  "Advance to Arbitrium Avenue - If you pass Go, collect $200",
+  "Advance token to nearest Utility. Pay 10x dice.",
+  "Advance token to nearest Railroad. Pay 2x rent.",
+  "Bank pays you dividend of $50",
+  "Get out of Jail Free",
+  "Go Back 3 Spaces",
+  "Go to Jail",
+  "Make general repairs - $25 house, $100 hotel",
+  "Pay poor tax of $15",
+  "Take a trip to IPFS Railroad",
+  "Take a walk on the Bitcoin Lane",
+  "Speeding fine $200",
+  "Building loan matures - collect $150",
+];
+
+// Placeholder for Community Chest cards; update with actual cards
+const COMMUNITY_CHEST_CARDS = [
+  "Advance to Go (Collect $200)",
+  "Bank pays you dividend of $50",
+  "Get out of Jail Free",
+  "Go to Jail",
+  "Pay poor tax of $15",
+  "Building loan matures - collect $150",
+];
 
 const GameBoard = () => {
   const { account, address } = useAccount();
@@ -34,13 +63,12 @@ const GameBoard = () => {
   const [inputGameId, setInputGameId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
-  // Log boardData to check for issues
   useEffect(() => {
     console.log('boardData:', boardData);
   }, []);
 
-  // Load gameId from localStorage or URL on mount
   useEffect(() => {
     const id = searchParams.get('gameId') || localStorage.getItem('gameId');
     if (id) {
@@ -50,7 +78,6 @@ const GameBoard = () => {
     }
   }, [searchParams]);
 
-  // Load game data when address and gameId are available
   useEffect(() => {
     if (address && gameId !== null) {
       loadGameData(address, gameId.toString());
@@ -61,7 +88,6 @@ const GameBoard = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch game data
       const gameData = await gameActions.getGame(gid);
       console.log('Game Data:', gameData);
       const gamePlayers = await Promise.all(
@@ -69,10 +95,12 @@ const GameBoard = () => {
           const player = await gameActions.getPlayer(addr, gid);
           console.log(`Player Data for ${addr}:`, player);
           const addrString = typeof addr === 'string' ? addr : String(addr);
+          const decodedUsername = shortString.decodeShortString(player.username);
+
           return {
             id: index,
             address: addrString,
-            name: typeof player.username === 'string' && player.username.trim() !== '' ? player.username : addrString.slice(0, 8) || 'Unknown',
+            name: decodedUsername,
             token: PLAYER_TOKENS[index % PLAYER_TOKENS.length],
             position: Number(player.position || 0),
             balance: Number(player.balance || 0),
@@ -80,29 +108,35 @@ const GameBoard = () => {
             isBankrupt: !!player.is_bankrupt,
             propertiesOwned: player.properties_owned || [],
             isNext: !!player.is_next,
+            // chanceJailCard: !!player.chance_jail_card,
+            // communityJailCard: !!player.community_jail_card,
           };
         })
       );
       setPlayers(gamePlayers);
       setGame({
         id: Number(gameData.id || 0),
-        nextPlayer: typeof gameData.next_player === 'string' ? gameData.next_player : String(gameData.next_player) || 'Unknown',
+        nextPlayer:
+          gameData.next_player && typeof gameData.next_player === 'string' && gameData.next_player !== '0'
+            ? shortString.decodeShortString(gameData.next_player)
+            : String(gameData.next_player) || 'Unknown',
       });
 
-      // Fetch specific player data
       const playerData = await gameActions.getPlayer(playerAddress, gid);
       console.log('Player Data:', playerData);
+      const decodedPlayerUsername = shortString.decodeShortString(playerData.username);
       setPlayer({
         address: playerAddress,
-        username: typeof playerData.username === 'string' && playerData.username.trim() !== '' ? playerData.username : playerAddress.slice(0, 8) || 'Unknown',
+        username: decodedPlayerUsername,
         balance: Number(playerData.balance || 0),
         position: Number(playerData.position || 0),
         jailed: !!playerData.jailed,
         is_bankrupt: !!playerData.is_bankrupt,
         propertiesOwned: playerData.properties_owned || [],
+        // chanceJailCard: !!player.chance_jail_card,
+        // communityJailCard: !!player.community_jail_card,
       });
 
-      // Fetch ownership data for all properties
       const ownershipMap: { [key: number]: { owner: string; token: string } } = {};
       for (const square of boardData) {
         if (square.type === 'property') {
@@ -120,30 +154,61 @@ const GameBoard = () => {
       }
       setOwnedProperties(ownershipMap);
 
-      // Fetch current property based on connected player's position
       const position = Number(playerData?.position || 0);
       console.log('Fetching property for position:', position);
       const propertyId = boardData[position]?.id;
       if (propertyId !== undefined) {
         const propertyData = await propertyActions.getProperty(propertyId, gid);
         console.log('Property Data:', propertyData);
+        const decodedPropertyName =
+          propertyData.name && typeof propertyData.name === 'string' && propertyData.name !== '0'
+            ? shortString.decodeShortString(propertyData.name)
+            : propertyData.name?.variant || boardData[position]?.name || 'Unknown';
         setCurrentProperty({
           id: Number(propertyData.id || propertyId),
-          name: typeof propertyData.name === 'string' ? propertyData.name : propertyData.name?.variant || boardData[position]?.name || 'Unknown',
+          name: decodedPropertyName,
           type:
-            propertyData.type === 'Go' || propertyData.type === 'VisitingJail' || propertyData.type === 'FreeParking' || propertyData.type === 'Jail'
+            propertyData.type === 'Go' ||
+            propertyData.type === 'VisitingJail' ||
+            propertyData.type === 'FreeParking' ||
+            propertyData.type === 'Jail'
               ? 'corner'
-              : propertyData.type === 'Property' || propertyData.type === 'RailRoad' || propertyData.type === 'Utility'
+              : propertyData.type === 'Property' ||
+                propertyData.type === 'RailRoad' ||
+                propertyData.type === 'Utility'
               ? 'property'
-              : propertyData.type === 'Chance' || propertyData.type === 'CommunityChest' || propertyData.type === 'Tax'
+              : propertyData.type === 'Chance' ||
+                propertyData.type === 'CommunityChest' ||
+                propertyData.type === 'Tax'
               ? 'special'
               : boardData[position]?.type || 'Unknown',
-          owner: typeof propertyData.owner === 'string' ? propertyData.owner : String(propertyData.owner) || null,
-          rent_site_only: propertyData.rent_site_only ? Number(propertyData.rent_site_only) : boardData[position]?.rent_site_only || 0,
+          owner:
+            propertyData.owner && typeof propertyData.owner === 'string'
+              ? propertyData.owner
+              : String(propertyData.owner) || null,
+          rent_site_only: propertyData.rent_site_only
+            ? Number(propertyData.rent_site_only)
+            : boardData[position]?.rent_site_only || 0,
         });
+
+        if (account && (propertyData.type === 'Chance' || propertyData.type === 'CommunityChest')) {
+          const cardList = propertyData.type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
+          const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
+          setSelectedCard(randomCard);
+          await handleAction(
+            () =>
+              propertyData.type === 'Chance'
+                ? movementActions.processChanceCard(account, gid, byteArray.byteArrayFromString(randomCard))
+                : movementActions.processCommunityChestCard(account, gid, byteArray.byteArrayFromString(randomCard)),
+            propertyData.type === 'Chance' ? 'processChanceCard' : 'processCommunityChestCard'
+          );
+        } else {
+          setSelectedCard(null);
+        }
       } else {
         console.log('No property found for position:', position);
         setCurrentProperty(null);
+        setSelectedCard(null);
       }
 
       setError(null);
@@ -174,7 +239,6 @@ const GameBoard = () => {
       return;
     }
 
-    // Roll two dice
     const die1 = Math.floor(Math.random() * 6) + 1;
     const die2 = Math.floor(Math.random() * 6) + 1;
     const roll = die1 + die2;
@@ -186,7 +250,6 @@ const GameBoard = () => {
       const result = await movementActions.movePlayer(account, gameId.toString(), roll);
       console.log('movePlayer Contract Position:', result);
 
-      // Update local position
       const updatedPlayers = [...players];
       const newPos = (updatedPlayers[currentPlayerIndex].position + roll) % boardData.length;
       console.log('UI Calculated Position:', newPos);
@@ -194,7 +257,6 @@ const GameBoard = () => {
       setPlayers(updatedPlayers);
       setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
 
-      // Refresh game data
       if (address && gameId !== null) {
         await loadGameData(address, gameId.toString());
       }
@@ -212,7 +274,6 @@ const GameBoard = () => {
       setError(null);
       const res = await fn();
       console.log(`${label} Response:`, res);
-      // Refresh game data after any action
       if (address && gameId !== null) {
         await loadGameData(address, gameId.toString());
       }
@@ -222,6 +283,14 @@ const GameBoard = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePayTax = async () => {
+    if (!account || !gameId || !currentProperty) return;
+    await handleAction(
+      () => movementActions.payTax(account, currentProperty.id, gameId.toString()),
+      'payTax'
+    );
   };
 
   const currentPlayer = players[currentPlayerIndex];
@@ -234,11 +303,9 @@ const GameBoard = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white p-4 flex flex-col lg:flex-row gap-4">
-      {/* Game Board */}
       <div className="lg:w-2/3 flex justify-center items-center">
         <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg">
           <div className="grid grid-cols-11 grid-rows-11 w-full h-full gap-[2px]">
-            {/* Center Area */}
             <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4">
               <h1 className="text-3xl lg:text-5xl font-bold text-[#F0F7F7] font-orbitron text-center mb-4">
                 BLOCKOPOLY
@@ -258,7 +325,7 @@ const GameBoard = () => {
                       Rolled: <span className="font-bold text-white">{lastRoll.die1} + {lastRoll.die2} = {lastRoll.total}</span>
                     </p>
                   )}
-                  <div className="flex flex-row gap-2">
+                  <div className="flex flex-row gap-2 flex-wrap">
                     <button
                       onClick={() =>
                         account &&
@@ -301,6 +368,13 @@ const GameBoard = () => {
                     >
                       Finish Turn
                     </button>
+                    <button
+                      onClick={handlePayTax}
+                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'special' || currentProperty?.name !== 'Tax'}
+                      className="px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 disabled:opacity-50 transition-all"
+                    >
+                      Pay Tax
+                    </button>
                   </div>
                   {error && (
                     <p className="text-red-400 text-sm mt-2">{error}</p>
@@ -309,7 +383,6 @@ const GameBoard = () => {
               </div>
             </div>
 
-            {/* Board squares */}
             {boardData.map((square, index) => (
               <div
                 key={square.id}
@@ -339,7 +412,6 @@ const GameBoard = () => {
         </div>
       </div>
 
-      {/* Sidebar */}
       <div className="lg:w-1/3 flex flex-col gap-2">
         <div className="bg-[#0E282A] p-3 rounded-lg">
           <h2 className="text-base font-semibold text-cyan-300 mb-2">Game ID</h2>
@@ -393,6 +465,9 @@ const GameBoard = () => {
                 <p className="text-sm"><strong>Name:</strong> {currentProperty.name || boardData[player?.position || 0]?.name || 'Unknown'}</p>
                 <p className="text-sm"><strong>Current Owner:</strong> {currentProperty.owner || 'None'}</p>
                 <p className="text-sm"><strong>Current Rent:</strong> {currentProperty.rent_site_only || 0}</p>
+                {selectedCard && (currentProperty.type === 'special' && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest')) && (
+                  <p className="text-sm"><strong>Card Drawn:</strong> {selectedCard}</p>
+                )}
               </div>
             ) : (
               <p className="text-gray-300 text-sm">No property data available.</p>
@@ -406,13 +481,14 @@ const GameBoard = () => {
             ) : player ? (
               <div className="space-y-1">
                 <p className="text-sm">
-                  <strong>Username:</strong>{' '}
-                  {player.username || player.address.slice(0, 8)}
+                  <strong>Username:</strong> {player.username}
                 </p>
                 <p className="text-sm"><strong>Balance:</strong> {player.balance}</p>
                 <p className="text-sm"><strong>Position:</strong> {player.position}</p>
                 <p className="text-sm"><strong>Jailed:</strong> {player.jailed ? 'Yes' : 'No'}</p>
                 <p className="text-sm"><strong>Bankrupt:</strong> {player.is_bankrupt ? 'Yes' : 'No'}</p>
+                {/* <p className="text-sm"><strong>Chance Jail Card:</strong> {player.chanceJailCard ? 'Yes' : 'No'}</p>
+                <p className="text-sm"><strong>Community Jail Card:</strong> {player.communityJailCard ? 'Yes' : 'No'}</p> */}
               </div>
             ) : (
               <p className="text-gray-300 text-sm">No player data available.</p>
