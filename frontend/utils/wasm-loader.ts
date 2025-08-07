@@ -2,7 +2,6 @@
  * WASM Loading Utilities
  * Provides helper functions for loading and initializing WebAssembly modules
  */
-
 export interface WasmModule {
   instance: WebAssembly.Instance;
   module: WebAssembly.Module;
@@ -19,24 +18,17 @@ export async function loadWasmModule(
   importObject?: WebAssembly.Imports
 ): Promise<WasmModule> {
   try {
-    // Check if we're in a browser environment
-    if (typeof window !== 'undefined') {
-      // Browser environment - use fetch
-      const response = await fetch(wasmPath);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch WASM module: ${response.statusText}`);
-      }
-      
-      const wasmBytes = await response.arrayBuffer();
-      const module = await WebAssembly.compile(wasmBytes);
-      const instance = await WebAssembly.instantiate(module, importObject);
-      
-      return { instance, module };
-    } else {
-      // Node.js environment - use dynamic import
-      const wasmModule = await import(wasmPath);
-      return wasmModule;
+    // Browser environment - use fetch
+    const response = await fetch(wasmPath);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch WASM module: ${response.statusText}`);
     }
+    
+    const wasmBytes = await response.arrayBuffer();
+    const module = await WebAssembly.compile(wasmBytes);
+    const instance = await WebAssembly.instantiate(module, importObject || {});
+    
+    return { instance, module };
   } catch (error) {
     console.error('Failed to load WASM module:', error);
     throw new Error(`WASM loading failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -57,7 +49,7 @@ export async function loadWasmModuleStreaming(
     if (typeof window !== 'undefined' && 'instantiateStreaming' in WebAssembly) {
       // Use streaming compilation if available
       const response = await fetch(wasmPath);
-      const result = await WebAssembly.instantiateStreaming(response, importObject);
+      const result = await WebAssembly.instantiateStreaming(response, importObject || {});
       return result.instance;
     } else {
       // Fallback to regular loading
