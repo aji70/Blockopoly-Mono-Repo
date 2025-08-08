@@ -1,25 +1,5 @@
 'use client';
 
-// Interfaces for type safety
-interface Token {
-  name: string;
-  emoji: string;
-  value: number;
-}
-
-interface Player {
-  address: `0x${string}` | undefined; // Allow undefined until confirmed
-  tokenValue: number;
-}
-
-interface Game {
-  id: number;
-  creator: `0x${string}` | undefined; // Allow undefined until confirmed
-  players: Player[];
-  maxPlayers: number;
-  availableTokens: Token[];
-}
-
 import { House } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
@@ -30,7 +10,26 @@ import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useGameActions } from '@/hooks/useGameActions';
 import { shortString } from 'starknet';
 
-// Monopoly tokens with names, emojis, and numeric values
+// Interfaces for type safety
+interface Token {
+  name: string;
+  emoji: string;
+  value: number;
+}
+
+interface Player {
+  address: `0x${string}` | undefined;
+  tokenValue: number;
+}
+
+interface Game {
+  id: number;
+  creator: `0x${string}` | undefined;
+  players: Player[];
+  maxPlayers: number;
+  availableTokens: Token[];
+}
+
 const tokens: Token[] = [
   { name: 'Top Hat', emoji: '🎩', value: 1 },
   { name: 'Car', emoji: '🚗', value: 2 },
@@ -52,16 +51,16 @@ const JoinRoom = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [gameType, setGameType] = useState('');
-  const [selectedToken, setSelectedToken] = useState('');
+  const [selectedToken, setSelectedToken] = useState(''); // For Create Game modal
+  const [joinTokenValue, setJoinTokenValue] = useState<number | ''>(''); // For Join Game number input
   const [numberOfPlayers, setNumberOfPlayers] = useState('');
-  const [roomId, setRoomId] = useState<number | ''>(''); // Use raw number for room ID
-  const [continueGameId, setContinueGameId] = useState<number | ''>(''); // Use raw number for continue
+  const [roomId, setRoomId] = useState<number | ''>('');
+  const [continueGameId, setContinueGameId] = useState<number | ''>('');
   const [username, setUsername] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
-  const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ongoingGames, setOngoingGames] = useState<number[]>([]); // Start with empty array for fresh deployment
+  const [ongoingGames, setOngoingGames] = useState<number[]>([]);
 
   useEffect(() => {
     if (isWasmSupported()) {
@@ -82,26 +81,21 @@ const JoinRoom = () => {
       };
       checkRegistration();
 
-      // Load ongoing games from localStorage, but start fresh if none
       const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as number[];
-      if (storedGames.length > 0) {
-        setOngoingGames(storedGames);
-      } else {
-        localStorage.setItem('ongoingGames', JSON.stringify([])); // Ensure empty array in localStorage
-      }
+      setOngoingGames(storedGames);
     }
   }, [address, player]);
 
   const handleRequest = async (fn: () => Promise<any>, label: string) => {
     setLoading(true);
     setError(null);
-    setResponse(null);
     try {
       const res = await fn();
-      setResponse(res);
+      console.log(`${label} Response:`, res);
       return res;
     } catch (err: any) {
-      setError(err?.message || 'Unknown error');
+      console.error(`${label} Error:`, err);
+      setError(err?.message || `Failed to ${label.toLowerCase()}`);
       return null;
     } finally {
       setLoading(false);
@@ -109,68 +103,67 @@ const JoinRoom = () => {
   };
 
   const handleCreateGame = async () => {
-    if (!account || !address) return alert('Wallet not connected');
-    if (!gameType || !selectedToken || !numberOfPlayers) return alert('Fill in all fields');
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before creating a game');
+    if (!gameType || !selectedToken || !numberOfPlayers) return setError('Please fill in all fields');
 
-    const tokenValue = tokens.find((t: Token) => t.name === selectedToken)?.value;
-    if (!tokenValue) return alert('Invalid token selected');
+    const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
+    if (!tokenValue) return setError('Invalid token selected');
 
     const res = await handleRequest(
       () => game.createGame(account, +gameType, tokenValue, +numberOfPlayers),
-      'createGame'
+      'Create Game'
     );
 
     if (res) {
       const gameId = Number(res);
-      alert(`Game created with ID: ${gameId}`);
-
-      const updatedGames = [...ongoingGames, gameId];
+      const updatedGames = [...new Set([...ongoingGames, gameId])];
       setOngoingGames(updatedGames);
       localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
-
       setShowModal(false);
       router.push(`/game-play?gameId=${gameId}`);
     }
   };
 
   const handleJoinRoom = async (id?: number) => {
-    if (!account || !address) return alert('Wallet not connected');
-    const selectedId = id || (typeof roomId === 'string' ? parseInt(roomId) : roomId);
-    if (isNaN(selectedId) || !selectedId || !selectedToken) return alert('Enter a valid room ID and select a token');
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before joining a game');
+    if (loading) return setError('Action in progress, please wait');
 
-    const tokenValue = tokens.find((t: Token) => t.name === selectedToken)?.value;
-    if (!tokenValue) return alert('Invalid token selected');
+    const selectedId = id !== undefined ? id : (typeof roomId === 'string' ? parseInt(roomId) : roomId);
+    if (isNaN(selectedId) || !selectedId) return setError('Please enter a valid room ID');
+    
+    // Validate token value for joining a new game
+    if (id === undefined && (isNaN(Number(joinTokenValue)) || +joinTokenValue > 8)) {
+      return setError('Please enter a valid token value (1-8)');
+    }
 
-    try {
-      const res = await handleRequest(
-        () => game.joinGame(account, selectedId, tokenValue),
-        'joinGame'
-      );
+    const tokenValue = id === undefined ? Number(joinTokenValue) : 0; // Use 0 for ongoing games
+    const res = await handleRequest(
+      () => game.joinGame(account, selectedId, tokenValue),
+      'Join Game'
+    );
 
-      if (res) {
-        alert(`Joined game with ID: ${selectedId}`);
-        router.push(`/game-play?gameId=${selectedId}`);
-      }
-    } catch (err: any) {
-      setError('Invalid game ID: ' + err.message);
+    if (res) {
+      const updatedGames = [...new Set([...ongoingGames, selectedId])];
+      setOngoingGames(updatedGames);
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      router.push(`/game-play?gameId=${selectedId}`);
     }
   };
 
   const handleContinueGame = async () => {
-    if (!account || !address) return alert('Wallet not connected');
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before continuing a game');
+    if (loading) return setError('Action in progress, please wait');
+
     const gameId = typeof continueGameId === 'string' ? parseInt(continueGameId) : continueGameId;
-    if (isNaN(gameId) || !gameId) return alert('Enter a valid game ID');
+    if (isNaN(gameId) || !gameId) return setError('Please enter a valid game ID');
 
-    try {
-      const res = await handleRequest(() => game.getGame(gameId), 'getGame');
+    const res = await handleRequest(() => game.getGame(gameId), 'Continue Game');
 
-      if (res) {
-        router.push(`/game-play?gameId=${gameId}`);
-      } else {
-        setError('Invalid game ID or game does not exist');
-      }
-    } catch (err: any) {
-      setError('Invalid game ID: ' + err.message);
+    if (res) {
+      router.push(`/game-play?gameId=${gameId}`);
     }
   };
 
@@ -194,7 +187,6 @@ const JoinRoom = () => {
           </p>
         </div>
 
-        {/* Ongoing Games Section */}
         {ongoingGames.length > 0 && (
           <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border border-[#003B3E] p-6">
             <h3 className="text-[#F0F7F7] font-orbitron text-[18px] font-[600] text-center mb-4">
@@ -217,10 +209,11 @@ const JoinRoom = () => {
           </div>
         )}
 
-        <div className="w-full max-w-[792px] mt-10 flex justify-between items-center">
+        <div className="w-full max-w-[792px] mt-10 flex flex-col md:flex-row justify-between items-center gap-4">
           <button
             onClick={() => router.push('/')}
-            className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
           >
             <svg
               width="227"
@@ -231,10 +224,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#0E1415"
                 stroke="#003B3E"
-                strokeWidth={1}
+                strokeWidth="1"
                 className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -246,7 +239,8 @@ const JoinRoom = () => {
 
           <button
             onClick={() => setShowModal(true)}
-            className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
           >
             <svg
               width="227"
@@ -257,10 +251,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#003B3E"
                 stroke="#003B3E"
-                strokeWidth={1}
+                strokeWidth="1"
                 className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -272,7 +266,8 @@ const JoinRoom = () => {
 
           <button
             onClick={clearOngoingGames}
-            className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
           >
             <svg
               width="227"
@@ -283,10 +278,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#0E1415"
                 stroke="#FF0000"
-                strokeWidth={1}
+                strokeWidth="1"
                 className="group-hover:stroke-[#FF0000] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -304,26 +299,25 @@ const JoinRoom = () => {
               value={roomId}
               onChange={(e) => setRoomId(e.target.value ? parseInt(e.target.value) : '')}
               className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+              disabled={loading}
             />
             <div>
-              <label className="block text-[#F0F7F7] font-dmSans text-[14px] mb-2">Select Token</label>
-              <select
-                value={selectedToken}
-                onChange={(e) => setSelectedToken(e.target.value)}
-                className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-[#010F10]"
-              >
-                <option value="" disabled>Select a token</option>
-                {tokens.map((token: Token) => (
-                  <option key={token.name} value={token.name}>
-                    {token.emoji} {token.name}
-                  </option>
-                ))}
-              </select>
+              <label className="block text-[#F0F7F7] font-dmSans text-[14px] mb-2">Enter Token Value (1-8)</label>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                placeholder="Enter token value (e.g., 1)"
+                value={joinTokenValue}
+                onChange={(e) => setJoinTokenValue(e.target.value ? parseInt(e.target.value) : '')}
+                className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+                disabled={loading}
+              />
             </div>
             <button
               onClick={() => handleJoinRoom()}
               className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
-              disabled={loading || !roomId || !selectedToken}
+              disabled={loading || !roomId || !joinTokenValue}
             >
               <svg
                 width="260"
@@ -334,10 +328,10 @@ const JoinRoom = () => {
                 className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
               >
                 <path
-                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96244 52 4.5 49.5376 4.5 46.5V9.5C4.5 6.46243 6.96243 4 10 4Z"
+                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C4.5 3.46243 6.96243 1 10 1Z"
                   fill="#00F0FF"
                   stroke="#0E282A"
-                  strokeWidth={1}
+                  strokeWidth="1"
                 />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
@@ -356,6 +350,7 @@ const JoinRoom = () => {
               value={continueGameId}
               onChange={(e) => setContinueGameId(e.target.value ? parseInt(e.target.value) : '')}
               className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+              disabled={loading}
             />
             <button
               onClick={handleContinueGame}
@@ -371,10 +366,10 @@ const JoinRoom = () => {
                 className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
               >
                 <path
-                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96244 52 4.5 49.5376 4.5 46.5V9.5C4.5 6.46243 6.96243 4 10 4Z"
+                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C4.5 3.46243 6.96243 1 10 1Z"
                   fill="#00F0FF"
                   stroke="#0E282A"
-                  strokeWidth={1}
+                  strokeWidth="1"
                 />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
@@ -401,6 +396,7 @@ const JoinRoom = () => {
                     value={gameType}
                     onChange={(e) => setGameType(e.target.value)}
                     className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
                   />
                 </div>
                 <div>
@@ -409,9 +405,10 @@ const JoinRoom = () => {
                     value={selectedToken}
                     onChange={(e) => setSelectedToken(e.target.value)}
                     className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
                   >
                     <option value="" disabled>Select a token</option>
-                    {tokens.map((token: Token) => (
+                    {tokens.map((token) => (
                       <option key={token.name} value={token.name}>
                         {token.emoji} {token.name}
                       </option>
@@ -427,6 +424,7 @@ const JoinRoom = () => {
                     value={numberOfPlayers}
                     onChange={(e) => setNumberOfPlayers(e.target.value)}
                     className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
                   />
                 </div>
                 <button
@@ -439,6 +437,7 @@ const JoinRoom = () => {
                 <button
                   onClick={() => setShowModal(false)}
                   className="w-full text-sm mt-2 text-center underline text-[#869298]"
+                  disabled={loading}
                 >
                   Cancel
                 </button>

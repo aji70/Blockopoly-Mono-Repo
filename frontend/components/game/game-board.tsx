@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Added for redirect after end game
+import { useRouter } from 'next/navigation';
 import { BoardSquare } from '@/types/game';
 import PropertyCard from './property-card';
 import SpecialCard from './special-card';
@@ -15,7 +15,18 @@ import { usePropertyActions } from '@/hooks/usePropertyActions';
 import { useSearchParams } from 'next/navigation';
 import { shortString, byteArray } from 'starknet';
 
-const PLAYER_TOKENS = ['🎩', '🚗', '🐕', '🛩️', '🚀', '🐱', '🛥️', '⛵️'];
+const PLAYER_TOKENS = ['🎩', '🚗', '🐕', '🚢', '🛒', '👞', '🧵', '🧼'];
+
+const tokenValueToEmoji: { [key: number]: string } = {
+  1: '🎩',
+  2: '🚗',
+  3: '🐕',
+  4: '🚢',
+  5: '🛒',
+  6: '👞',
+  7: '🧵',
+  8: '🧼',
+};
 
 const CHANCE_CARDS = [
   "Advance to Go (Collect $200)",
@@ -75,6 +86,7 @@ const GameBoard = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [hasGameStarted, setHasGameStarted] = useState(false);
 
   useEffect(() => {
     console.log('boardData:', boardData);
@@ -83,7 +95,8 @@ const GameBoard = () => {
   useEffect(() => {
     const id = searchParams.get('gameId') || localStorage.getItem('gameId');
     if (id) {
-      setGameId(Number(id));
+      const numId = Number(id);
+      setGameId(numId);
       setInputGameId(id);
       localStorage.setItem('gameId', id);
     }
@@ -91,16 +104,20 @@ const GameBoard = () => {
 
   useEffect(() => {
     if (address && gameId !== null) {
-      loadGameData(address, +gameId.toString());
+      loadGameData(address, gameId);
     }
   }, [address, gameId]);
 
-  const loadGameData = async (playerAddress: string, gid: any) => {
+  const loadGameData = async (playerAddress: string, gid: number) => {
     setIsLoading(true);
     setError(null);
     try {
       const gameData = await gameActions.getGame(gid);
       console.log('Game Data:', gameData);
+
+      // Check if game has started (optional, for robustness)
+      const gameStarted = gameData.next_player && gameData.next_player !== '0';
+      setHasGameStarted(gameStarted);
 
       const currentPlayerAddress = await movementActions.getCurrentPlayer(gid);
       console.log('Current Player Address:', currentPlayerAddress);
@@ -112,12 +129,14 @@ const GameBoard = () => {
           const addrString = typeof addr === 'string' ? addr : String(addr);
           const username = await playerActions.getUsernameFromAddress(addrString);
           const decodedUsername = shortString.decodeShortString(username);
+          const tokenValue = Number(player.token_value || (index + 1));
+          const token = tokenValueToEmoji[tokenValue] || PLAYER_TOKENS[index % PLAYER_TOKENS.length] || '❓';
 
           return {
             id: index,
             address: addrString,
             name: decodedUsername || `Player ${index + 1}`,
-            token: PLAYER_TOKENS[index % PLAYER_TOKENS.length],
+            token: token,
             position: Number(player.position || 0),
             balance: Number(player.balance || 0),
             jailed: !!player.jailed,
@@ -217,7 +236,6 @@ const GameBoard = () => {
           name: decodedPropertyName,
           owner: ownerPlayer ? ownerPlayer.name : null,
         });
-
         setSelectedCard(null);
       } else {
         console.log('No property found for position:', position);
@@ -240,10 +258,25 @@ const GameBoard = () => {
       setGameId(gid);
       localStorage.setItem('gameId', inputGameId);
       if (address) {
-        loadGameData(address, gid.toString());
+        loadGameData(address, gid);
       }
     } else {
       setError('Please enter a valid Game ID.');
+    }
+  };
+
+  const handleStartGame = async () => {
+    if (!account || !gameId) {
+      setError('Please connect your wallet and provide a valid Game ID.');
+      return;
+    }
+
+    const res = await handleAction(
+      () => gameActions.startGame(account, gameId),
+      'startGame'
+    );
+    if (res) {
+      setHasGameStarted(true);
     }
   };
 
@@ -261,7 +294,7 @@ const GameBoard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await movementActions.movePlayer(account, +gameId.toString(), roll);
+      const result = await movementActions.movePlayer(account, gameId, roll);
       console.log('movePlayer Contract Position:', result);
 
       const updatedPlayers = [...players];
@@ -272,7 +305,7 @@ const GameBoard = () => {
       setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
 
       if (address && gameId !== null) {
-        await loadGameData(address, +gameId.toString());
+        await loadGameData(address, gameId);
       }
     } catch (err: any) {
       console.error('rollDice Error:', err);
@@ -293,20 +326,19 @@ const GameBoard = () => {
       setError(null);
       const cardList = type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
       const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
-      setSelectedCard(randomCard); // Show card immediately
+      setSelectedCard(randomCard);
 
-      // Call the appropriate function with the card as a byte array
       await handleAction(
         () =>
           type === 'Chance'
-            ? movementActions.processChanceCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard))
-            : movementActions.processCommunityChestCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard)),
+            ? movementActions.processChanceCard(account, gameId, byteArray.byteArrayFromString(randomCard))
+            : movementActions.processCommunityChestCard(account, gameId, byteArray.byteArrayFromString(randomCard)),
         `process${type}Card`
       );
     } catch (err: any) {
       console.error(`Draw ${type} Card Error:`, err);
       setError(err.message || `Error drawing ${type} card.`);
-      setSelectedCard(null); // Clear card on error
+      setSelectedCard(null);
     } finally {
       setIsLoading(false);
     }
@@ -321,7 +353,7 @@ const GameBoard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      await gameActions.endGame(account, +gameId.toString());
+      await gameActions.endGame(account, gameId);
       console.log('Game Ended:', gameId);
 
       setGameId(null);
@@ -333,6 +365,7 @@ const GameBoard = () => {
       setOwnedProperties({});
       setSelectedCard(null);
       setLastRoll(null);
+      setHasGameStarted(false);
       localStorage.removeItem('gameId');
 
       router.push('/');
@@ -345,13 +378,17 @@ const GameBoard = () => {
   };
 
   const handleAction = async (fn: () => Promise<any>, label: string) => {
+    if (!account || !gameId) {
+      setError('Please connect your wallet and provide a valid Game ID.');
+      return null;
+    }
     try {
       setIsLoading(true);
       setError(null);
       const res = await fn();
       console.log(`${label} Response:`, res);
       if (address && gameId !== null) {
-        await loadGameData(address, +gameId.toString());
+        await loadGameData(address, gameId);
       }
       return res;
     } catch (err: any) {
@@ -364,9 +401,12 @@ const GameBoard = () => {
   };
 
   const handlePayTax = async () => {
-    if (!account || !gameId || !currentProperty) return;
+    if (!account || !gameId || !currentProperty) {
+      setError('Please connect your wallet and ensure a valid game and property.');
+      return;
+    }
     await handleAction(
-      () => movementActions.payTax(account, currentProperty.id, +gameId.toString()),
+      () => movementActions.payTax(account, currentProperty.id, gameId),
       'payTax'
     );
   };
@@ -392,14 +432,23 @@ const GameBoard = () => {
               <div className="bg-gray-800 p-4 rounded-lg w-full max-w-sm">
                 <h2 className="text-base font-semibold text-cyan-300 mb-3">Game Actions</h2>
                 <div className="flex flex-col gap-2">
+                  {!hasGameStarted && (
+                    <button
+                      onClick={handleStartGame}
+                      disabled={!account || !gameId || isLoading}
+                      className="px-3 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs rounded-full shadow-md hover:from-purple-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                    >
+                      Start
+                    </button>
+                  )}
                   <button
                     onClick={rollDice}
-                    disabled={!gameId || isLoading}
+                    disabled={!account || !gameId || isLoading}
                     className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                   >
                     🎲 Roll Dice
                   </button>
-                  {lastRoll !== null && (
+                  {lastRoll && (
                     <p className="text-gray-300 text-sm text-center">
                       Rolled: <span className="font-bold text-white">{lastRoll.die1} + {lastRoll.die2} = {lastRoll.total}</span>
                     </p>
@@ -407,70 +456,64 @@ const GameBoard = () => {
                   <div className="flex flex-wrap gap-2 justify-center">
                     <button
                       onClick={() =>
-                        account &&
-                        gameId !== null &&
                         handleAction(
-                          () => propertyActions.buyProperty(account, currentProperty?.id || 0, +gameId.toString()),
+                          () => propertyActions.buyProperty(account!, currentProperty?.id || 0, gameId!),
                           'buyProperty'
                         )
                       }
-                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || currentProperty?.owner}
+                      disabled={!account || !gameId || !currentProperty || isLoading || currentProperty?.type !== 'property' || currentProperty?.owner}
                       className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full shadow-md hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Buy
                     </button>
                     <button
                       onClick={() =>
-                        account &&
-                        gameId !== null &&
                         handleAction(
-                          () => propertyActions.payRent(account, currentProperty?.id || 0, +gameId.toString()),
+                          () => propertyActions.payRent(account!, currentProperty?.id || 0, gameId!),
                           'payRent'
                         )
                       }
-                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || !currentProperty?.owner}
+                      disabled={!account || !gameId || !currentProperty || isLoading || currentProperty?.type !== 'property' || !currentProperty?.owner}
                       className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs rounded-full shadow-md hover:from-orange-600 hover:to-amber-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Rent
                     </button>
                     <button
                       onClick={() =>
-                        account &&
-                        gameId !== null &&
                         handleAction(
-                          () => propertyActions.finishTurn(account, +gameId.toString()),
+                          () => propertyActions.finishTurn(account!, gameId!),
                           'finishTurn'
                         )
                       }
-                      disabled={!account || gameId === null || isLoading}
+                      disabled={!account || !gameId || isLoading}
                       className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full shadow-md hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       End Turn
                     </button>
                     <button
                       onClick={handlePayTax}
-                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'special' || currentProperty?.name !== 'Tax'}
+                      disabled={!account || !gameId || !currentProperty || isLoading || currentProperty?.type !== 'special' || currentProperty?.name !== 'Tax'}
                       className="px-3 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-xs rounded-full shadow-md hover:from-purple-600 hover:to-violet-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Tax
                     </button>
                     <button
                       onClick={() => handleDrawCard('Chance')}
-                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'Chance'}
+                      disabled={!account || !gameId || !currentProperty || isLoading || currentProperty.name !== 'Chance'}
                       className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-xs rounded-full shadow-md hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Draw Chance
                     </button>
                     <button
                       onClick={() => handleDrawCard('CommunityChest')}
-                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'CommunityChest'}
-                      className="px-3 py-1 bg-gradient-to-r from-khaki-500 to-olive-500 text-white text-xs rounded-full shadow-md hover:from-khaki-600 hover:to-olive-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                      disabled={!account || !gameId || !currentProperty || isLoading || currentProperty.name !== 'CommunityChest'}
+                      className="px-3 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs rounded-full shadow-md hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Draw CChest
                     </button>
                     <button
                       onClick={handleEndGame}
-                      disabled={!account || gameId === null || isLoading}
+                      disabled={!account || !gameId || isLoading}
                       className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full shadow-md hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       End Game
@@ -484,7 +527,7 @@ const GameBoard = () => {
               {selectedCard && currentProperty && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest') && (
                 <div className="mt-4 bg-[#0E282A] p-3 rounded-lg w-full max-w-sm">
                   <h3 className="text-base font-semibold text-cyan-300 mb-2">
-                    {currentProperty.name} Card
+                    {currentProperty.name === 'CommunityChest' ? 'Community Chest' : 'Chance'} Card
                   </h3>
                   <p className="text-sm text-gray-300">{selectedCard}</p>
                   <button
@@ -575,24 +618,22 @@ const GameBoard = () => {
 
         <div className="flex flex-col lg:flex-row gap-2">
           <div className="bg-[#0E282A] p-3 rounded-lg lg:w-1/2">
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold text-cyan-300 mb-2">Current Property</h2>
-              {isLoading ? (
-                <p className="text-gray-300 text-sm">Loading property data...</p>
-              ) : currentProperty ? (
-                <div className="space-y-1">
-                  <p className="text-sm"><strong>ID:</strong> {currentProperty.id}</p>
-                  <p className="text-sm"><strong>Name:</strong> {currentProperty.name || boardData[player?.position || 0]?.name || 'Unknown'}</p>
-                  <p className="text-sm"><strong>Current Owner:</strong> {currentProperty.owner || 'None'}</p>
-                  <p className="text-sm"><strong>Current Rent:</strong> {currentProperty.rent_site_only || 0}</p>
-                  {selectedCard && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest') && (
-                    <p className="text-sm"><strong>Card Drawn:</strong> {selectedCard}</p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-300 text-sm">No property data available.</p>
-              )}
-            </div>
+            <h2 className="text-base font-semibold text-cyan-300 mb-2">Current Property</h2>
+            {isLoading ? (
+              <p className="text-gray-300 text-sm">Loading property data...</p>
+            ) : currentProperty ? (
+              <div className="space-y-1">
+                <p className="text-sm"><strong>ID:</strong> {currentProperty.id}</p>
+                <p className="text-sm"><strong>Name:</strong> {currentProperty.name || boardData[player?.position || 0]?.name || 'Unknown'}</p>
+                <p className="text-sm"><strong>Current Owner:</strong> {currentProperty.owner || 'None'}</p>
+                <p className="text-sm"><strong>Current Rent:</strong> {currentProperty.rent_site_only || 0}</p>
+                {selectedCard && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest') && (
+                  <p className="text-sm"><strong>Card Drawn:</strong> {selectedCard}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-300 text-sm">No property data available.</p>
+            )}
           </div>
 
           <div className="bg-[#0E282A] p-3 rounded-lg lg:w-1/2">
