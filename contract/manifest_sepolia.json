@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x34e5a92c61b1cbde0d0e1a5d345fb2b02fd7509ee43e3b556a406614f2ee3c9",
-    "seed": "oladele",
+    "address": "0x59a6df948e99a74805aa5eaf76e8afd0676496a627eea4fbfe673856b26e891",
+    "seed": "oladeleali",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,7 +1328,7 @@
   },
   "contracts": [
     {
-      "address": "0x5824054028729bcd30de9a18ec37d8a488d35b4e59ff8ee46d34eaec6d9684c",
+      "address": "0x461b34ce4e39a86c508cf285cf6c04fb91820cdbeb985281228b858092c191d",
       "class_hash": "0x1d40cf0b018e940ee8239f91e4e7e889128f0fe33dfc9799afe724909f30ba8",
       "abi": [
         {
@@ -2038,7 +2038,7 @@
       ]
     },
     {
-      "address": "0x45fb7b655c2135c30656673e1f8db96eb085727df4be71b2aa83900e0ea350a",
+      "address": "0x333adcdf63bd79307575b09b7e58d9029153d677dc8709e11fe554b5e14e635",
       "class_hash": "0x2f505d476a9b40b16f7a83dfe3994646514331d552beb92019d4440d59b8c8b",
       "abi": [
         {
@@ -2420,7 +2420,7 @@
       ]
     },
     {
-      "address": "0x35ab0af88f0d6ba12e0b3e06f124eba86f994561dc6ed5be4420258637b558e",
+      "address": "0x5b930ba8d34bafbca0d37b15fd4796b37de4e99d621e0c4432a72706863f81c",
       "class_hash": "0x2c35b79d2c5300a7d4ae492cc3094ddcb77611795eb97288067a334487b961f",
       "abi": [
         {
@@ -2738,7 +2738,7 @@
       ]
     },
     {
-      "address": "0x645f933a718996784901648b1d9b2ae65b7d7f14d7e40f90baa31f86c7d8208",
+      "address": "0x68e6e41a24a66237469c59c3c97b6a46404d242190df28d7afb0f4e502e0f69",
       "class_hash": "0x44faa50f8b0de73a17971b37891610fe7b52ddccdc206019fb4a539dafcd843",
       "abi": [
         {
@@ -3418,7 +3418,7 @@
       ]
     },
     {
-      "address": "0x1ee4217af51f89cdf46e58059042a76492e7e16fd37d5092f4d5d77049e426b",
+      "address": "0x20a22d8109073adbc44e2d2ae68f4d92c75a5d4ad2ebfef6f664f8122cea3a4",
       "class_hash": "0x659311ebd500fd5b861df50957d1669ba70d50d2c3dba5aed415f86ce08670",
       "abi": [
         {

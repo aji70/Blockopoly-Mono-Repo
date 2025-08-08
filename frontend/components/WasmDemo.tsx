@@ -1,15 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { House } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { IoIosAddCircle } from 'react-icons/io';
 import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
 import { useAccount, useConnect, useDisconnect } from '@starknet-react/core';
 import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useGameActions } from '@/hooks/useGameActions';
-import { useMovementActions } from '@/hooks/useMovementActions';
-import { usePropertyActions } from '@/hooks/usePropertyActions';
-import { useTradeActions } from '@/hooks/useTradeActions';
-import { byteArray } from 'starknet';
+import { shortString } from 'starknet';
 
 // Encode game ID to 5-letter string
 const encodeGameId = (gameId: number): string => {
@@ -39,239 +38,462 @@ const decodeGameId = (code: string): number => {
   return id;
 };
 
-export default function WasmDemo() {
+// Interfaces for type safety
+interface Token {
+  name: string;
+  emoji: string;
+  value: number;
+}
+
+interface Player {
+  address: `0x${string}` | undefined;
+  tokenValue: number;
+}
+
+interface Game {
+  id: number;
+  creator: `0x${string}` | undefined;
+  players: Player[];
+  maxPlayers: number;
+  availableTokens: Token[];
+}
+
+const tokens: Token[] = [
+  { name: 'Top Hat', emoji: '🎩', value: 1 },
+  { name: 'Car', emoji: '🚗', value: 2 },
+  { name: 'Dog', emoji: '🐕', value: 3 },
+  { name: 'Battleship', emoji: '🚢', value: 4 },
+  { name: 'Wheelbarrow', emoji: '🛒', value: 5 },
+  { name: 'Shoe', emoji: '👞', value: 6 },
+  { name: 'Thimble', emoji: '🧵', value: 7 },
+  { name: 'Iron', emoji: '🧼', value: 8 },
+];
+
+const JoinRoom = () => {
   const { account, address } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { connect } = useConnect();
   const { disconnect } = useDisconnect();
+  const game = useGameActions();
+  const player = usePlayerActions();
   const router = useRouter();
 
-  const player = usePlayerActions();
-  const game = useGameActions();
-  const move = useMovementActions();
-  const property = usePropertyActions();
-  const trade = useTradeActions();
-
-  const [fields, setFields] = useState({
-    username: '',
-    addressp: '',
-    gameType: '',
-    playerSymbol: '',
-    numPlayers: '',
-    gameId: '',
-    amount: '',
-    diceRoll: '',
-    propertyId: '',
-    card: '',
-  });
-  const [response, setResponse] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [gameType, setGameType] = useState('');
+  const [selectedToken, setSelectedToken] = useState(''); // For Create Game modal
+  const [joinTokenValue, setJoinTokenValue] = useState<number | ''>(''); // For Join Game number input
+  const [numberOfPlayers, setNumberOfPlayers] = useState('');
+  const [roomId, setRoomId] = useState<string>(''); // 5-letter game code
+  const [continueGameId, setContinueGameId] = useState<string>(''); // 5-letter game code
+  const [username, setUsername] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ongoingGames, setOngoingGames] = useState<string[]>([]); // Store 5-letter codes
+
+  useEffect(() => {
+    if (isWasmSupported()) {
+      getWasmCapabilities();
+    }
+    if (address) {
+      const checkRegistration = async () => {
+        try {
+          const registered = await player.isRegistered(address);
+          setIsRegistered(registered);
+          if (registered) {
+            const user = await player.getUsernameFromAddress(address);
+            setUsername(shortString.decodeShortString(user));
+          }
+        } catch (err: any) {
+          setError(err?.message || 'Failed to check registration status');
+        }
+      };
+      checkRegistration();
+
+      const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as string[];
+      setOngoingGames(storedGames);
+    }
+  }, [address, player]);
 
   const handleRequest = async (fn: () => Promise<any>, label: string) => {
     setLoading(true);
     setError(null);
-    setResponse(null);
     try {
       const res = await fn();
-      console.log(label, res);
-      setResponse(res);
+      console.log(`${label} Response:`, res);
       return res;
     } catch (err: any) {
-      console.error(label, err);
-      setError(err?.message || 'Unknown error');
+      console.error(`${label} Error:`, err);
+      setError(err?.message || `Failed to ${label.toLowerCase()}`);
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isWasmSupported()) {
-      getWasmCapabilities();
-    } else {
-      console.warn('WebAssembly is not supported in this browser.');
-      setError('WebAssembly is not supported in this browser.');
-    }
-  }, []);
+  const handleCreateGame = async () => {
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before creating a game');
+    if (!gameType || !selectedToken || !numberOfPlayers) return setError('Please fill in all fields');
 
-  if (!address) {
-    return (
-      <main className="p-8 text-center text-white bg-gray-900 min-h-screen">
-        <p>Please connect your wallet to continue.</p>
-        <div className="mt-4">
-          {connectors.map((connector) => (
-            <button
-              key={connector.id}
-              onClick={() => connect({ connector })}
-              className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded m-2"
-            >
-              Connect with {connector.name}
-            </button>
-          ))}
-        </div>
-      </main>
+    const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
+    if (!tokenValue) return setError('Invalid token selected');
+
+    const res = await handleRequest(
+      () => game.createGame(account, +gameType, tokenValue, +numberOfPlayers),
+      'Create Game'
     );
-  }
 
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setFields((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    if (res) {
+      const gameId = Number(res);
+      const gameCode = encodeGameId(gameId);
+      const updatedGames = [...new Set([...ongoingGames, gameCode])];
+      setOngoingGames(updatedGames);
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      setShowModal(false);
+      router.push(`/game-play?gameId=${gameId}`);
+    }
+  };
 
-  const actionButtons = [
-    { label: 'Register Player', onClick: () => account && handleRequest(() => player.register(account, fields.username), 'register') },
-    { label: 'Check Registered', onClick: () => handleRequest(() => player.isRegistered(fields.addressp), 'isRegistered') },
-    { label: 'Get Username', onClick: () => handleRequest(() => player.getUsernameFromAddress(fields.addressp), 'getUsername') },
-    { label: 'Retrieve Player', onClick: () => handleRequest(() => player.retrievePlayer(fields.addressp), 'retrievePlayer') },
-    {
-      label: 'Create Game',
-      onClick: () =>
-        account &&
-        handleRequest(
-          () => game.createGame(account, +fields.gameType, +fields.playerSymbol, +fields.numPlayers),
-          'createGame'
-        ),
-    },
-    {
-      label: 'Join Game',
-      onClick: async () => {
-        if (!account) return alert('Wallet not connected');
-        if (!fields.gameId || !fields.playerSymbol) return alert('Enter both game code and player symbol');
+  const handleJoinRoom = async (code?: string) => {
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before joining a game');
+    if (loading) return setError('Action in progress, please wait');
 
-        try {
-          const gameId = decodeGameId(fields.gameId.toUpperCase());
-          const res = await handleRequest(
-            () => game.joinGame(account, gameId, +fields.playerSymbol),
-            'joinGame'
-          );
-          if (res) {
-            alert('Joined game with code: ' + fields.gameId.toUpperCase());
-            router.push(`/game-play?gameId=${gameId}`);
-          }
-        } catch (err: any) {
-          setError('Invalid game code: ' + err.message);
-        }
-      },
-    },
-    { label: 'Start Game', onClick: () => account && handleRequest(() => game.startGame(account, +fields.gameId), 'startGame') },
-    { label: 'Get Game', onClick: () => handleRequest(() => game.getGame(+fields.gameId), 'getGame') },
-    { label: 'Retrieve Game Player', onClick: () => handleRequest(() => game.getPlayer(fields.addressp, +fields.gameId), 'getPlayer') },
-    { label: 'Mint', onClick: () => account && handleRequest(() => game.mint(account, fields.addressp, +fields.gameId, +fields.amount), 'mint') },
-    { label: 'Get Balance', onClick: () => handleRequest(() => game.getGamePlayerBalance(fields.addressp, +fields.gameId), 'getBalance') },
-    { label: 'Move Player', onClick: () => account && handleRequest(() => move.movePlayer(account, +fields.gameId, +fields.diceRoll), 'movePlayer') },
-    { label: 'Pay Jail Fine', onClick: () => account && handleRequest(() => move.payJailFine(account, +fields.gameId), 'payJailFine') },
-    { label: 'Chance Jail Card', onClick: () => account && handleRequest(() => move.payGetoutOfJailChance(account, +fields.gameId), 'chanceCard') },
-    { label: 'Community Jail Card', onClick: () => account && handleRequest(() => move.payGetoutOfJailCommunity(account, +fields.gameId), 'communityCard') },
-    { label: 'Get Current Player', onClick: () => account && handleRequest(() => move.getCurrentPlayer(+fields.gameId), 'currentPlayer') },
-    { label: 'Current Player Name', onClick: () => account && handleRequest(() => move.getCurrentPlayerName(+fields.gameId), 'currentPlayerName') },
-    { label: 'Buy Property', onClick: () => account && handleRequest(() => property.buyProperty(account, +fields.propertyId, +fields.gameId), 'buyProperty') },
-    { label: 'End Game', onClick: () => account && handleRequest(() => game.endGame(account, +fields.gameId), 'endGame') },
-    { label: 'Get Property', onClick: () => handleRequest(() => property.getProperty(+fields.propertyId, +fields.gameId), 'getProperty') },
-    { label: 'Finish Turn', onClick: () => account && handleRequest(() => property.finishTurn(account, +fields.gameId), 'finishTurn') },
-    { label: 'Pay Rent', onClick: () => account && handleRequest(() => property.payRent(account, +fields.propertyId, +fields.gameId), 'payRent') },
-    {
-      label: 'Process Community',
-      onClick: () =>
-        account &&
-        handleRequest(
-          () => move.processCommunityChestCard(account, +fields.gameId, byteArray.byteArrayFromString(fields.card)),
-          'processCommunityChestCard'
-        ),
-    },
-    {
-      label: 'Process Chance',
-      onClick: () =>
-        account &&
-        handleRequest(
-          () => move.processChanceCard(account, +fields.gameId, byteArray.byteArrayFromString(fields.card)),
-          'processChanceCard'
-        ),
-    },
-    { label: 'Pay Tax', onClick: () => account && handleRequest(() => move.payTax(account, +fields.propertyId, +fields.gameId), 'payTax') },
-  ];
+    const selectedCode = code || roomId;
+    if (!selectedCode) return setError('Please enter a game code');
+
+    let selectedId: number;
+    try {
+      selectedId = decodeGameId(selectedCode.toUpperCase());
+    } catch (err: any) {
+      return setError('Invalid 5-letter game code');
+    }
+
+    // if (!code && (isNaN(Number(joinTokenValue)) || joinTokenValue < 1 || joinTokenValue > 8)) {
+    //   return setError('Please enter a valid token value (1-8)');
+    // }
+
+    const tokenValue = code ? 0 : Number(joinTokenValue); // Use 0 for ongoing games
+    const res = await handleRequest(
+      () => game.joinGame(account, selectedId, tokenValue),
+      'Join Game'
+    );
+
+    if (res) {
+      const updatedGames = [...new Set([...ongoingGames, selectedCode.toUpperCase()])];
+      setOngoingGames(updatedGames);
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      router.push(`/game-play?gameId=${selectedId}`);
+    }
+  };
+
+  const handleContinueGame = async () => {
+    if (!account || !address) return setError('Please connect your wallet');
+    if (!isRegistered) return setError('Please register before continuing a game');
+    if (loading) return setError('Action in progress, please wait');
+
+    if (!continueGameId) return setError('Please enter a game code');
+
+    let gameId: number;
+    try {
+      gameId = decodeGameId(continueGameId.toUpperCase());
+    } catch (err: any) {
+      return setError('Invalid 5-letter game code');
+    }
+
+    const res = await handleRequest(() => game.getGame(gameId), 'Continue Game');
+
+    if (res) {
+      router.push(`/game-play?gameId=${gameId}`);
+    }
+  };
+
+  const clearOngoingGames = () => {
+    localStorage.removeItem('ongoingGames');
+    setOngoingGames([]);
+  };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8 space-y-10 min-h-screen bg-gray-900 text-white">
-      <h1 className="text-4xl font-bold text-center text-blue-400">Blockopoly Demo</h1>
+    <section className="w-full min-h-screen bg-settings bg-cover bg-fixed bg-center">
+      <main className="w-full min-h-screen py-20 flex flex-col items-center justify-start bg-[#010F101F] backdrop-blur-[12px] px-4">
+        <div className="w-full flex flex-col items-center">
+          {isRegistered && (
+            <p className="text-[#00F0FF] font-orbitron md:text-[20px] text-[16px] font-[700] text-center mb-4">
+              Welcome, {username}!
+            </p>
+          )}
+          <h2 className="text-[#F0F7F7] font-orbitron md:text-[24px] text-[20px] font-[700] text-center">Join Room</h2>
+          <p className="text-[#869298] text-[16px] font-dmSans text-center">
+            Enter the 5-letter game code and token value to join
+          </p>
+        </div>
 
-      <div className="text-center text-sm text-gray-400">
-        Connected as: <span className="text-blue-300 font-mono">{address}</span>
-        <button
-          onClick={() => disconnect()}
-          className="ml-4 bg-red-600 hover:bg-red-700 text-white p-2 rounded"
-        >
-          Disconnect
-        </button>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left: Form Fields */}
-        <section className="space-y-4 col-span-1 bg-gray-800 p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-white mb-2">Input Fields</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { name: 'username', label: 'Username' },
-              { name: 'addressp', label: 'Address' },
-              { name: 'gameType', label: 'Game Type' },
-              { name: 'playerSymbol', label: 'Player Symbol' },
-              { name: 'numPlayers', label: 'Number of Players' },
-              { name: 'gameId', label: 'Game Code (e.g., AAAAB)', placeholder: 'AAAAB' },
-              { name: 'amount', label: 'Amount' },
-              { name: 'diceRoll', label: 'Dice Roll' },
-              { name: 'propertyId', label: 'Property ID' },
-              { name: 'card', label: 'Card' },
-            ].map(({ name, label, placeholder }) => (
-              <div key={name} className="flex flex-col">
-                <label className="text-sm text-gray-300 mb-1">{label}</label>
-                <input
-                  name={name}
-                  value={fields[name as keyof typeof fields]}
-                  onChange={onChange}
-                  placeholder={placeholder || label}
-                  className="bg-gray-700 text-white p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            ))}
+        {ongoingGames.length > 0 && (
+          <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border border-[#003B3E] p-6">
+            <h3 className="text-[#F0F7F7] font-orbitron text-[18px] font-[600] text-center mb-4">
+              Ongoing Games
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {ongoingGames.map((code) => (
+                <button
+                  key={code}
+                  onClick={() => handleJoinRoom(code)}
+                  className="relative group w-full h-[40px] bg-transparent border border-[#003B3E] rounded-[8px] overflow-hidden cursor-pointer"
+                  disabled={loading}
+                >
+                  <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] text-[14px] font-dmSans font-medium z-10">
+                    Join Game: {code}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </section>
+        )}
 
-        {/* Middle: Actions */}
-        <section className="col-span-1 lg:col-span-1 bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
-          <h2 className="text-xl font-semibold text-white mb-4">Actions</h2>
-          <div className="grid sm:grid-cols-2 gap-3 max-h-[640px] overflow-y-auto pr-2">
-            {actionButtons.map((btn, i) => (
-              <button
-                key={i}
-                onClick={btn.onClick}
+        <div className="w-full max-w-[792px] mt-10 flex flex-col md:flex-row justify-between items-center gap-4">
+          <button
+            onClick={() => router.push('/')}
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
+          >
+            <svg
+              width="227"
+              height="40"
+              viewBox="0 0 227 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute top-0 left-0 w-full h-full"
+            >
+              <path
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                fill="#0E1415"
+                stroke="#003B3E"
+                strokeWidth="1"
+                className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[#0FF0FC] capitalize text-[13px] font-dmSans font-medium z-10">
+              <House className="mr-1 w-[14px] h-[14px]" />
+              Go Back Home
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
+          >
+            <svg
+              width="227"
+              height="40"
+              viewBox="0 0 227 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
+            >
+              <path
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                fill="#003B3E"
+                stroke="#003B3E"
+                strokeWidth="1"
+                className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] capitalize text-[12px] font-dmSans font-medium z-10">
+              <IoIosAddCircle className="mr-1 w-[14px] h-[14px]" />
+              Create New Room
+            </span>
+          </button>
+
+          <button
+            onClick={clearOngoingGames}
+            className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+            disabled={loading}
+          >
+            <svg
+              width="227"
+              height="40"
+              viewBox="0 0 227 40"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute top-0 left-0 w-full h-full"
+            >
+              <path
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                fill="#0E1415"
+                stroke="#FF0000"
+                strokeWidth="1"
+                className="group-hover:stroke-[#FF0000] transition-all duration-300 ease-in-out"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[#FF0000] capitalize text-[13px] font-dmSans font-medium z-10">
+              Clear Ongoing Games
+            </span>
+          </button>
+        </div>
+
+        <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border border-[#003B3E] md:px-20 px-6 py-12 flex flex-col gap-4">
+          <div className="w-full flex flex-col gap-4 mt-8">
+            <div>
+              <label className="block text-[#F0F7F7] font-dmSans text-[14px] mb-2">Game Code</label>
+              <input
+                type="text"
+                placeholder="Enter game code (e.g., AAAAB)"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 transition-all duration-150 text-sm p-2 rounded text-white disabled:opacity-50"
+                maxLength={5}
+              />
+            </div>
+            <div>
+              <label className="block text-[#F0F7F7] font-dmSans text-[14px] mb-2">Token Value (1-8)</label>
+              <input
+                type="number"
+                min={1}
+                max={8}
+                placeholder="Enter token value (e.g., 1)"
+                value={joinTokenValue}
+                onChange={(e) => setJoinTokenValue(e.target.value ? parseInt(e.target.value) : '')}
+                className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+                disabled={loading}
+              />
+            </div>
+            <button
+              onClick={() => handleJoinRoom()}
+              className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+              disabled={loading || !roomId || !joinTokenValue}
+            >
+              <svg
+                width="260"
+                height="52"
+                viewBox="0 0 260 52"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
               >
-                {btn.label}
-              </button>
-            ))}
+                <path
+                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C4.5 3.46243 6.96243 1 10 1Z"
+                  fill="#00F0FF"
+                  stroke="#0E282A"
+                  strokeWidth="1"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
+                Join Room
+              </span>
+            </button>
           </div>
-        </section>
 
-        {/* Right: Response Panel */}
-        <section className="col-span-1 bg-gray-900 p-6 rounded-xl shadow-md">
-          <h2 className="text-xl font-semibold text-green-300 mb-2">Response</h2>
-          <div className="text-sm bg-gray-800 rounded p-4 overflow-y-auto max-h-[640px]">
-            {loading ? (
-              <p className="text-blue-400">Loading...</p>
-            ) : error ? (
-              <pre className="text-red-400 whitespace-pre-wrap">{error}</pre>
-            ) : response ? (
-              <pre className="text-green-400 whitespace-pre-wrap">
-                {JSON.stringify(
-                  response,
-                  (_, v) => (typeof v === 'bigint' ? v.toString() : v),
-                  2
-                )}
-              </pre>
-            ) : (
-              <p className="text-gray-500">Responses will appear here...</p>
-            )}
+          <div className="w-full flex flex-col gap-4 mt-8">
+            <h3 className="text-[#F0F7F7] font-orbitron text-[18px] font-[600] text-center">
+              Continue Existing Game
+            </h3>
+            <input
+              type="text"
+              placeholder="Enter game code (e.g., AAAAB)"
+              value={continueGameId}
+              onChange={(e) => setContinueGameId(e.target.value.toUpperCase())}
+              className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+              disabled={loading}
+              maxLength={5}
+            />
+            <button
+              onClick={handleContinueGame}
+              className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+              disabled={loading || !continueGameId}
+            >
+              <svg
+                width="260"
+                height="52"
+                viewBox="0 0 260 52"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
+              >
+                <path
+                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C4.5 3.46243 6.96243 1 10 1Z"
+                  fill="#00F0FF"
+                  stroke="#0E282A"
+                  strokeWidth="1"
+                />
+              </svg>
+              <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
+                Continue Game
+              </span>
+            </button>
           </div>
-        </section>
-      </div>
-    </main>
+
+          {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
+        </div>
+
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white">
+              <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
+                Create New Game
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm mb-1">Game Type</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={gameType}
+                    onChange={(e) => setGameType(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Select Token</label>
+                  <select
+                    value={selectedToken}
+                    onChange={(e) => setSelectedToken(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
+                  >
+                    <option value="" disabled>Select a token</option>
+                    {tokens.map((token) => (
+                      <option key={token.name} value={token.name}>
+                        {token.emoji} {token.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Number of Players</label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={6}
+                    value={numberOfPlayers}
+                    onChange={(e) => setNumberOfPlayers(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    disabled={loading}
+                  />
+                </div>
+                <button
+                  onClick={handleCreateGame}
+                  className="w-full bg-[#00F0FF] text-[#010F10] py-2 rounded font-bold"
+                  disabled={loading}
+                >
+                  Create Game
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="w-full text-sm mt-2 text-center underline text-[#869298]"
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </section>
   );
-}
+};
+
+export default JoinRoom;

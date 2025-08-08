@@ -1,11 +1,10 @@
 import GameRoom from "@/components/game/game-room";
-import GameRoomLoading from "@/components/settings/game-room-loading";
 
 
-export default function GameRoomLoadingPage() {
+
+export default function GameRooms() {
     return (
         <main className="w-full overflow-x-hidden">
-            <GameRoomLoading />
             <GameRoom />
         </main>
     );
