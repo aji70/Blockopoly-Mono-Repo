@@ -91,11 +91,11 @@ const GameBoard = () => {
 
   useEffect(() => {
     if (address && gameId !== null) {
-      loadGameData(address, gameId.toString());
+      loadGameData(address, +gameId.toString());
     }
   }, [address, gameId]);
 
-  const loadGameData = async (playerAddress: string, gid: string) => {
+  const loadGameData = async (playerAddress: string, gid: any) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -262,7 +262,7 @@ const GameBoard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await movementActions.movePlayer(account, gameId.toString(), roll);
+      const result = await movementActions.movePlayer(account, +gameId.toString(), roll);
       console.log('movePlayer Contract Position:', result);
 
       const updatedPlayers = [...players];
@@ -273,7 +273,7 @@ const GameBoard = () => {
       setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
 
       if (address && gameId !== null) {
-        await loadGameData(address, gameId.toString());
+        await loadGameData(address, +gameId.toString());
       }
     } catch (err: any) {
       console.error('rollDice Error:', err);
@@ -299,8 +299,8 @@ const GameBoard = () => {
       await handleAction(
         () =>
           type === 'Chance'
-            ? movementActions.processChanceCard(account, gameId.toString(), byteArray.byteArrayFromString(randomCard))
-            : movementActions.processCommunityChestCard(account, gameId.toString(), byteArray.byteArrayFromString(randomCard)),
+            ? movementActions.processChanceCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard))
+            : movementActions.processCommunityChestCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard)),
         type === 'Chance' ? 'processChanceCard' : 'processCommunityChestCard'
       );
     } catch (err: any) {
@@ -320,7 +320,7 @@ const GameBoard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      await gameActions.endGame(account, gameId.toString());
+      await gameActions.endGame(account, +gameId.toString());
       console.log('Game Ended:', gameId);
 
       // Reset UI state
@@ -352,7 +352,7 @@ const GameBoard = () => {
       const res = await fn();
       console.log(`${label} Response:`, res);
       if (address && gameId !== null) {
-        await loadGameData(address, gameId.toString());
+        await loadGameData(address, +gameId.toString());
       }
       return res;
     } catch (err: any) {
@@ -367,7 +367,7 @@ const GameBoard = () => {
   const handlePayTax = async () => {
     if (!account || !gameId || !currentProperty) return;
     await handleAction(
-      () => movementActions.payTax(account, currentProperty.id, gameId.toString()),
+      () => movementActions.payTax(account, currentProperty.id, +gameId.toString()),
       'payTax'
     );
   };
@@ -410,7 +410,7 @@ const GameBoard = () => {
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.buyProperty(account, currentProperty?.id || 0, gameId.toString()),
+                          () => propertyActions.buyProperty(account, currentProperty?.id || 0, +gameId.toString()),
                           'buyProperty'
                         )
                       }
@@ -424,7 +424,7 @@ const GameBoard = () => {
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.payRent(account, currentProperty?.id || 0, gameId.toString()),
+                          () => propertyActions.payRent(account, currentProperty?.id || 0, +gameId.toString()),
                           'payRent'
                         )
                       }
@@ -438,7 +438,7 @@ const GameBoard = () => {
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.finishTurn(account, gameId.toString()),
+                          () => propertyActions.finishTurn(account, +gameId.toString()),
                           'finishTurn'
                         )
                       }
