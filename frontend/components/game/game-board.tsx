@@ -61,7 +61,7 @@ const GameBoard = () => {
   const movementActions = useMovementActions();
   const propertyActions = usePropertyActions();
   const searchParams = useSearchParams();
-  const router = useRouter(); // Added for redirect
+  const router = useRouter();
 
   const [players, setPlayers] = useState<any[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -218,7 +218,6 @@ const GameBoard = () => {
           owner: ownerPlayer ? ownerPlayer.name : null,
         });
 
-        // Removed automatic card processing to rely on manual buttons
         setSelectedCard(null);
       } else {
         console.log('No property found for position:', position);
@@ -294,18 +293,20 @@ const GameBoard = () => {
       setError(null);
       const cardList = type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
       const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
-      setSelectedCard(randomCard);
+      setSelectedCard(randomCard); // Show card immediately
 
+      // Call the appropriate function with the card as a byte array
       await handleAction(
         () =>
           type === 'Chance'
             ? movementActions.processChanceCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard))
             : movementActions.processCommunityChestCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard)),
-        type === 'Chance' ? 'processChanceCard' : 'processCommunityChestCard'
+        `process${type}Card`
       );
     } catch (err: any) {
       console.error(`Draw ${type} Card Error:`, err);
       setError(err.message || `Error drawing ${type} card.`);
+      setSelectedCard(null); // Clear card on error
     } finally {
       setIsLoading(false);
     }
@@ -323,7 +324,6 @@ const GameBoard = () => {
       await gameActions.endGame(account, +gameId.toString());
       console.log('Game Ended:', gameId);
 
-      // Reset UI state
       setGameId(null);
       setInputGameId('');
       setPlayers([]);
@@ -335,7 +335,6 @@ const GameBoard = () => {
       setLastRoll(null);
       localStorage.removeItem('gameId');
 
-      // Redirect to home page
       router.push('/');
     } catch (err: any) {
       console.error('End Game Error:', err);
@@ -382,8 +381,9 @@ const GameBoard = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white p-4 flex flex-col lg:flex-row gap-4">
+      {/* Board Section */}
       <div className="lg:w-2/3 flex justify-center items-center">
-        <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg">
+        <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg relative">
           <div className="grid grid-cols-11 grid-rows-11 w-full h-full gap-[2px]">
             <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4">
               <h1 className="text-3xl lg:text-5xl font-bold text-[#F0F7F7] font-orbitron text-center mb-4">
@@ -391,20 +391,20 @@ const GameBoard = () => {
               </h1>
               <div className="bg-gray-800 p-4 rounded-lg w-full max-w-sm">
                 <h2 className="text-base font-semibold text-cyan-300 mb-3">Game Actions</h2>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={rollDice}
                     disabled={!gameId || isLoading}
-                    className="px-4 py-2 bg-cyan-600 text-white text-sm rounded-md hover:bg-cyan-700 disabled:opacity-50 transition-all"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                   >
                     🎲 Roll Dice
                   </button>
                   {lastRoll !== null && (
-                    <p className="text-gray-300 text-sm">
+                    <p className="text-gray-300 text-sm text-center">
                       Rolled: <span className="font-bold text-white">{lastRoll.die1} + {lastRoll.die2} = {lastRoll.total}</span>
                     </p>
                   )}
-                  <div className="flex flex-row gap-2 flex-wrap">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     <button
                       onClick={() =>
                         account &&
@@ -415,9 +415,9 @@ const GameBoard = () => {
                         )
                       }
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || currentProperty?.owner}
-                      className="px-1.5 py-0.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full shadow-md hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Buy Property
+                      Buy
                     </button>
                     <button
                       onClick={() =>
@@ -429,7 +429,7 @@ const GameBoard = () => {
                         )
                       }
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || !currentProperty?.owner}
-                      className="px-1.5 py-0.5 bg-orange-600 text-white text-xs rounded-md hover:bg-orange-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs rounded-full shadow-md hover:from-orange-600 hover:to-amber-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Rent
                     </button>
@@ -443,41 +443,41 @@ const GameBoard = () => {
                         )
                       }
                       disabled={!account || gameId === null || isLoading}
-                      className="px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full shadow-md hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Finish Turn
+                      End Turn
                     </button>
                     <button
                       onClick={handlePayTax}
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'special' || currentProperty?.name !== 'Tax'}
-                      className="px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-xs rounded-full shadow-md hover:from-purple-600 hover:to-violet-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Tax
                     </button>
                     <button
                       onClick={() => handleDrawCard('Chance')}
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'Chance'}
-                      className="px-1.5 py-0.5 bg-yellow-600 text-white text-xs rounded-md hover:bg-yellow-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-xs rounded-full shadow-md hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Draw Chance Card
+                      Draw Chance
                     </button>
                     <button
                       onClick={() => handleDrawCard('CommunityChest')}
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'CommunityChest'}
-                      className="px-1.5 py-0.5 bg-khaki-600 text-white text-xs rounded-md hover:bg-khaki-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-khaki-500 to-olive-500 text-white text-xs rounded-full shadow-md hover:from-khaki-600 hover:to-olive-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Draw Community Chest Card
+                      Draw CChest
                     </button>
                     <button
                       onClick={handleEndGame}
                       disabled={!account || gameId === null || isLoading}
-                      className="px-1.5 py-0.5 bg-red-600 text-white text-xs rounded-md hover:bg-red-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full shadow-md hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       End Game
                     </button>
                   </div>
                   {error && (
-                    <p className="text-red-400 text-sm mt-2">{error}</p>
+                    <p className="text-red-400 text-sm mt-2 text-center">{error}</p>
                   )}
                 </div>
               </div>
@@ -489,9 +489,9 @@ const GameBoard = () => {
                   <p className="text-sm text-gray-300">{selectedCard}</p>
                   <button
                     onClick={() => setSelectedCard(null)}
-                    className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700"
+                    className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700 transform hover:scale-105 transition-all duration-200"
                   >
-                    Dismiss Card
+                    Dismiss
                   </button>
                 </div>
               )}
@@ -529,6 +529,7 @@ const GameBoard = () => {
         </div>
       </div>
 
+      {/* Sidebar Section */}
       <div className="lg:w-1/3 flex flex-col gap-2">
         <div className="bg-[#0E282A] p-3 rounded-lg">
           <h2 className="text-base font-semibold text-cyan-300 mb-2">Game ID</h2>
@@ -543,7 +544,7 @@ const GameBoard = () => {
             <button
               onClick={handleGameIdSubmit}
               disabled={isLoading}
-              className="px-2 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50 transition-all"
+              className="px-2 py-1 bg-green-600 text-white text-xs rounded-full hover:bg-green-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
             >
               Submit
             </button>
