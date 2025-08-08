@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Added for redirect after end game
 import { BoardSquare } from '@/types/game';
 import PropertyCard from './property-card';
 import SpecialCard from './special-card';
@@ -60,6 +61,7 @@ const GameBoard = () => {
   const movementActions = useMovementActions();
   const propertyActions = usePropertyActions();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [players, setPlayers] = useState<any[]>([]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
@@ -89,22 +91,20 @@ const GameBoard = () => {
 
   useEffect(() => {
     if (address && gameId !== null) {
-      loadGameData(address, gameId.toString());
+      loadGameData(address, +gameId.toString());
     }
   }, [address, gameId]);
 
-  const loadGameData = async (playerAddress: string, gid: string) => {
+  const loadGameData = async (playerAddress: string, gid: any) => {
     setIsLoading(true);
     setError(null);
     try {
       const gameData = await gameActions.getGame(gid);
       console.log('Game Data:', gameData);
 
-      // Fetch current player address
       const currentPlayerAddress = await movementActions.getCurrentPlayer(gid);
       console.log('Current Player Address:', currentPlayerAddress);
 
-      // Fetch usernames for all players
       const gamePlayers = await Promise.all(
         (gameData.game_players || []).map(async (addr: any, index: number) => {
           const player = await gameActions.getPlayer(addr, gid);
@@ -129,7 +129,6 @@ const GameBoard = () => {
       );
       setPlayers(gamePlayers);
 
-      // Fetch next player username
       let nextPlayerUsername = 'Unknown';
       if (gameData.next_player && gameData.next_player !== '0') {
         const nextPlayerAddress = typeof gameData.next_player === 'string' ? gameData.next_player : String(gameData.next_player);
@@ -156,7 +155,6 @@ const GameBoard = () => {
         propertiesOwned: playerData.properties_owned || [],
       });
 
-      // Update owned properties with usernames
       const ownershipMap: { [key: number]: { owner: string; ownerUsername: string; token: string } } = {};
       for (const square of boardData) {
         if (square.type === 'property') {
@@ -220,21 +218,7 @@ const GameBoard = () => {
           owner: ownerPlayer ? ownerPlayer.name : null,
         });
 
-        // Process Chance or Community Chest card
-        if (account && (propertyData.type === 'Chance' || propertyData.type === 'CommunityChest')) {
-          const cardList = propertyData.type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
-          const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
-          setSelectedCard(randomCard);
-          await handleAction(
-            () =>
-              propertyData.type === 'Chance'
-                ? movementActions.processChanceCard(account, gid, byteArray.byteArrayFromString(randomCard))
-                : movementActions.processCommunityChestCard(account, gid, byteArray.byteArrayFromString(randomCard)),
-            propertyData.type === 'Chance' ? 'processChanceCard' : 'processCommunityChestCard'
-          );
-        } else {
-          setSelectedCard(null);
-        }
+        setSelectedCard(null);
       } else {
         console.log('No property found for position:', position);
         setCurrentProperty(null);
@@ -277,7 +261,7 @@ const GameBoard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await movementActions.movePlayer(account, gameId.toString(), roll);
+      const result = await movementActions.movePlayer(account, +gameId.toString(), roll);
       console.log('movePlayer Contract Position:', result);
 
       const updatedPlayers = [...players];
@@ -288,11 +272,73 @@ const GameBoard = () => {
       setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
 
       if (address && gameId !== null) {
-        await loadGameData(address, gameId.toString());
+        await loadGameData(address, +gameId.toString());
       }
     } catch (err: any) {
       console.error('rollDice Error:', err);
       setError(err.message || 'Error rolling dice.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDrawCard = async (type: 'Chance' | 'CommunityChest') => {
+    if (!account || !gameId || !currentProperty || currentProperty.name !== type) {
+      setError(`You must be on a ${type} square to draw a card.`);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const cardList = type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
+      const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
+      setSelectedCard(randomCard); // Show card immediately
+
+      // Call the appropriate function with the card as a byte array
+      await handleAction(
+        () =>
+          type === 'Chance'
+            ? movementActions.processChanceCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard))
+            : movementActions.processCommunityChestCard(account, +gameId.toString(), byteArray.byteArrayFromString(randomCard)),
+        `process${type}Card`
+      );
+    } catch (err: any) {
+      console.error(`Draw ${type} Card Error:`, err);
+      setError(err.message || `Error drawing ${type} card.`);
+      setSelectedCard(null); // Clear card on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEndGame = async () => {
+    if (!account || !gameId) {
+      setError('Please connect your account and provide a valid Game ID.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await gameActions.endGame(account, +gameId.toString());
+      console.log('Game Ended:', gameId);
+
+      setGameId(null);
+      setInputGameId('');
+      setPlayers([]);
+      setGame(null);
+      setPlayer(null);
+      setCurrentProperty(null);
+      setOwnedProperties({});
+      setSelectedCard(null);
+      setLastRoll(null);
+      localStorage.removeItem('gameId');
+
+      router.push('/');
+    } catch (err: any) {
+      console.error('End Game Error:', err);
+      setError(err.message || 'Error ending game.');
     } finally {
       setIsLoading(false);
     }
@@ -305,7 +351,7 @@ const GameBoard = () => {
       const res = await fn();
       console.log(`${label} Response:`, res);
       if (address && gameId !== null) {
-        await loadGameData(address, gameId.toString());
+        await loadGameData(address, +gameId.toString());
       }
       return res;
     } catch (err: any) {
@@ -320,7 +366,7 @@ const GameBoard = () => {
   const handlePayTax = async () => {
     if (!account || !gameId || !currentProperty) return;
     await handleAction(
-      () => movementActions.payTax(account, currentProperty.id, gameId.toString()),
+      () => movementActions.payTax(account, currentProperty.id, +gameId.toString()),
       'payTax'
     );
   };
@@ -335,8 +381,9 @@ const GameBoard = () => {
 
   return (
     <div className="w-full min-h-screen bg-black text-white p-4 flex flex-col lg:flex-row gap-4">
+      {/* Board Section */}
       <div className="lg:w-2/3 flex justify-center items-center">
-        <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg">
+        <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg relative">
           <div className="grid grid-cols-11 grid-rows-11 w-full h-full gap-[2px]">
             <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4">
               <h1 className="text-3xl lg:text-5xl font-bold text-[#F0F7F7] font-orbitron text-center mb-4">
@@ -344,45 +391,45 @@ const GameBoard = () => {
               </h1>
               <div className="bg-gray-800 p-4 rounded-lg w-full max-w-sm">
                 <h2 className="text-base font-semibold text-cyan-300 mb-3">Game Actions</h2>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={rollDice}
                     disabled={!gameId || isLoading}
-                    className="px-4 py-2 bg-cyan-600 text-white text-sm rounded-md hover:bg-cyan-700 disabled:opacity-50 transition-all"
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                   >
                     🎲 Roll Dice
                   </button>
                   {lastRoll !== null && (
-                    <p className="text-gray-300 text-sm">
+                    <p className="text-gray-300 text-sm text-center">
                       Rolled: <span className="font-bold text-white">{lastRoll.die1} + {lastRoll.die2} = {lastRoll.total}</span>
                     </p>
                   )}
-                  <div className="flex flex-row gap-2 flex-wrap">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     <button
                       onClick={() =>
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.buyProperty(account, currentProperty?.id || 0, gameId.toString()),
+                          () => propertyActions.buyProperty(account, currentProperty?.id || 0, +gameId.toString()),
                           'buyProperty'
                         )
                       }
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || currentProperty?.owner}
-                      className="px-1.5 py-0.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full shadow-md hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Buy Property
+                      Buy
                     </button>
                     <button
                       onClick={() =>
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.payRent(account, currentProperty?.id || 0, gameId.toString()),
+                          () => propertyActions.payRent(account, currentProperty?.id || 0, +gameId.toString()),
                           'payRent'
                         )
                       }
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'property' || !currentProperty?.owner}
-                      className="px-1.5 py-0.5 bg-orange-600 text-white text-xs rounded-md hover:bg-orange-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs rounded-full shadow-md hover:from-orange-600 hover:to-amber-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Rent
                     </button>
@@ -391,25 +438,46 @@ const GameBoard = () => {
                         account &&
                         gameId !== null &&
                         handleAction(
-                          () => propertyActions.finishTurn(account, gameId.toString()),
+                          () => propertyActions.finishTurn(account, +gameId.toString()),
                           'finishTurn'
                         )
                       }
                       disabled={!account || gameId === null || isLoading}
-                      className="px-1.5 py-0.5 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full shadow-md hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
-                      Finish Turn
+                      End Turn
                     </button>
                     <button
                       onClick={handlePayTax}
                       disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty?.type !== 'special' || currentProperty?.name !== 'Tax'}
-                      className="px-1.5 py-0.5 bg-purple-600 text-white text-xs rounded-md hover:bg-purple-700 disabled:opacity-50 transition-all"
+                      className="px-3 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-xs rounded-full shadow-md hover:from-purple-600 hover:to-violet-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
                     >
                       Pay Tax
                     </button>
+                    <button
+                      onClick={() => handleDrawCard('Chance')}
+                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'Chance'}
+                      className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-xs rounded-full shadow-md hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                    >
+                      Draw Chance
+                    </button>
+                    <button
+                      onClick={() => handleDrawCard('CommunityChest')}
+                      disabled={!account || gameId === null || !currentProperty || isLoading || currentProperty.name !== 'CommunityChest'}
+                      className="px-3 py-1 bg-gradient-to-r from-khaki-500 to-olive-500 text-white text-xs rounded-full shadow-md hover:from-khaki-600 hover:to-olive-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                    >
+                      Draw CChest
+                    </button>
+                    <button
+                      onClick={handleEndGame}
+                      disabled={!account || gameId === null || isLoading}
+                      className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full shadow-md hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                    >
+                      End Game
+                    </button>
                   </div>
                   {error && (
-                    <p className="text-red-400 text-sm mt-2">{error}</p>
+                    <p className="text-red-400 text-sm mt-2 text-center">{error}</p>
                   )}
                 </div>
               </div>
@@ -421,9 +489,9 @@ const GameBoard = () => {
                   <p className="text-sm text-gray-300">{selectedCard}</p>
                   <button
                     onClick={() => setSelectedCard(null)}
-                    className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700"
+                    className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700 transform hover:scale-105 transition-all duration-200"
                   >
-                    Dismiss Card
+                    Dismiss
                   </button>
                 </div>
               )}
@@ -461,6 +529,7 @@ const GameBoard = () => {
         </div>
       </div>
 
+      {/* Sidebar Section */}
       <div className="lg:w-1/3 flex flex-col gap-2">
         <div className="bg-[#0E282A] p-3 rounded-lg">
           <h2 className="text-base font-semibold text-cyan-300 mb-2">Game ID</h2>
@@ -475,7 +544,7 @@ const GameBoard = () => {
             <button
               onClick={handleGameIdSubmit}
               disabled={isLoading}
-              className="px-2 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 disabled:opacity-50 transition-all"
+              className="px-2 py-1 bg-green-600 text-white text-xs rounded-full hover:bg-green-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
             >
               Submit
             </button>
@@ -506,22 +575,24 @@ const GameBoard = () => {
 
         <div className="flex flex-col lg:flex-row gap-2">
           <div className="bg-[#0E282A] p-3 rounded-lg lg:w-1/2">
-            <h2 className="text-base font-semibold text-cyan-300 mb-2">Current Property</h2>
-            {isLoading ? (
-              <p className="text-gray-300 text-sm">Loading property data...</p>
-            ) : currentProperty ? (
-              <div className="space-y-1">
-                <p className="text-sm"><strong>ID:</strong> {currentProperty.id}</p>
-                <p className="text-sm"><strong>Name:</strong> {currentProperty.name || boardData[player?.position || 0]?.name || 'Unknown'}</p>
-                <p className="text-sm"><strong>Current Owner:</strong> {currentProperty.owner || 'None'}</p>
-                <p className="text-sm"><strong>Current Rent:</strong> {currentProperty.rent_site_only || 0}</p>
-                {selectedCard && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest') && (
-                  <p className="text-sm"><strong>Card Drawn:</strong> {selectedCard}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-300 text-sm">No property data available.</p>
-            )}
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold text-cyan-300 mb-2">Current Property</h2>
+              {isLoading ? (
+                <p className="text-gray-300 text-sm">Loading property data...</p>
+              ) : currentProperty ? (
+                <div className="space-y-1">
+                  <p className="text-sm"><strong>ID:</strong> {currentProperty.id}</p>
+                  <p className="text-sm"><strong>Name:</strong> {currentProperty.name || boardData[player?.position || 0]?.name || 'Unknown'}</p>
+                  <p className="text-sm"><strong>Current Owner:</strong> {currentProperty.owner || 'None'}</p>
+                  <p className="text-sm"><strong>Current Rent:</strong> {currentProperty.rent_site_only || 0}</p>
+                  {selectedCard && (currentProperty.name === 'Chance' || currentProperty.name === 'CommunityChest') && (
+                    <p className="text-sm"><strong>Card Drawn:</strong> {selectedCard}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-300 text-sm">No property data available.</p>
+              )}
+            </div>
           </div>
 
           <div className="bg-[#0E282A] p-3 rounded-lg lg:w-1/2">
