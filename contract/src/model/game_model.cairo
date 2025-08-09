@@ -1,6 +1,6 @@
 use starknet::{ContractAddress, contract_address_const};
-// Keeps track of the state of the game
 
+// Keeps track of the state of the game
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
 #[dojo::model]
 pub struct GameCounter {
@@ -22,7 +22,7 @@ pub struct Game {
     pub winner: ContractAddress, // First winner position 
     pub next_player: ContractAddress, // Address of the player to make the next move
     pub number_of_players: u8, // Number of players in the game
-    pub rolls_count: u256, //  Sum of all the numbers rolled by the dice
+    pub rolls_count: u256, // Sum of all the numbers rolled by the dice
     pub rolls_times: u256, // Total number of times the dice has been rolled
     pub dice_face: u8, // Last value of dice thrown
     pub player_chance: ContractAddress, // Next player to make move
@@ -51,7 +51,6 @@ pub struct Game {
 }
 
 pub trait GameTrait {
-    // Create and return a new game
     fn new(
         id: u256,
         created_by: felt252,
@@ -73,9 +72,7 @@ pub trait GameTrait {
     fn terminate_game(ref self: Game);
 }
 
-
 // Represents the status of the game
-// Can either be Ongoing or Ended
 #[derive(Serde, Copy, Drop, Introspect, PartialEq, Debug)]
 pub enum GameStatus {
     Pending, // Waiting for players to join (in multiplayer mode)
@@ -84,13 +81,106 @@ pub enum GameStatus {
 }
 
 // Represents the game mode
-// Can either be SinglePlayer or Multiplayer
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
 pub enum GameType {
     PublicGame, // Play with computer
     PrivateGame // Play online with friends
 }
 
+// Conversion implementations for GameStatus
+impl GameStatusIntoFelt252 of Into<GameStatus, felt252> {
+    fn into(self: GameStatus) -> felt252 {
+        match self {
+            GameStatus::Pending => 'PENDING',
+            GameStatus::Ongoing => 'ONGOING',
+            GameStatus::Ended => 'ENDED',
+        }
+    }
+}
+
+impl Felt252TryIntoGameStatus of TryInto<felt252, GameStatus> {
+    fn try_into(self: felt252) -> Option<GameStatus> {
+        if self == 'PENDING' {
+            Option::Some(GameStatus::Pending)
+        } else if self == 'ONGOING' {
+            Option::Some(GameStatus::Ongoing)
+        } else if self == 'ENDED' {
+            Option::Some(GameStatus::Ended)
+        } else {
+            Option::None
+        }
+    }
+}
+
+// Conversion implementations for GameType
+impl GameTypeIntoFelt252 of Into<GameType, felt252> {
+    fn into(self: GameType) -> felt252 {
+        match self {
+            GameType::PublicGame => 'PUBLICGAME',
+            GameType::PrivateGame => 'PRIVATEGAME',
+        }
+    }
+}
+
+impl Felt252TryIntoGameType of TryInto<felt252, GameType> {
+    fn try_into(self: felt252) -> Option<GameType> {
+        if self == 'PUBLICGAME' {
+            Option::Some(GameType::PublicGame)
+        } else if self == 'PRIVATEGAME' {
+            Option::Some(GameType::PrivateGame)
+        } else {
+            Option::None
+        }
+    }
+}
+
+// Trait for GameStatus utilities
+#[generate_trait]
+impl GameStatusImpl of GameStatusTrait {
+    fn all() -> Array<GameStatus> {
+        array![GameStatus::Pending, GameStatus::Ongoing, GameStatus::Ended]
+    }
+
+    fn can_transition_to(self: GameStatus, new_state: GameStatus) -> bool {
+        match (self, new_state) {
+            (GameStatus::Pending, GameStatus::Ongoing) => true,
+            (GameStatus::Ongoing, GameStatus::Ended) => true,
+            _ => false,
+        }
+    }
+
+    fn is_active(self: GameStatus) -> bool {
+        match self {
+            GameStatus::Ongoing => true,
+            _ => false,
+        }
+    }
+
+    fn is_valid(status_felt: felt252) -> bool {
+        let result: Option<GameStatus> = status_felt.try_into();
+        result.is_some()
+    }
+}
+
+// Trait for GameType utilities
+#[generate_trait]
+impl GameTypeImpl of GameTypeTrait {
+    fn all() -> Array<GameType> {
+        array![GameType::PublicGame, GameType::PrivateGame]
+    }
+
+    fn is_multiplayer(self: GameType) -> bool {
+        match self {
+            GameType::PrivateGame => true,
+            GameType::PublicGame => false,
+        }
+    }
+
+    fn is_valid(type_felt: felt252) -> bool {
+        let result: Option<GameType> = type_felt.try_into();
+        result.is_some()
+    }
+}
 
 impl GameImpl of GameTrait {
     fn new(
@@ -183,3 +273,65 @@ impl GameImpl of GameTrait {
     }
 }
 
+// Test module for conversion logic
+#[cfg(test)]
+mod tests {
+    use super::{GameStatus, GameType, GameStatusTrait, GameTypeTrait};
+
+    #[test]
+    fn test_game_status_conversion_roundtrip() {
+        let all_statuses = GameStatusTrait::all();
+
+        for i in 0..all_statuses.len() {
+            let status = *all_statuses[i];
+            let felt_val: felt252 = status.into();
+            let converted_back: Option<GameStatus> = felt_val.try_into();
+
+            assert(converted_back.is_some(), 'Status conversion should succeed');
+            assert(converted_back.unwrap() == status, 'Should match original status');
+        }
+    }
+
+    #[test]
+    fn test_game_status_transitions() {
+        assert!(
+            GameStatusTrait::can_transition_to(GameStatus::Pending, GameStatus::Ongoing),
+            'Pending should transition to Ongoing'
+        );
+        assert!(
+            GameStatusTrait::can_transition_to(GameStatus::Ongoing, GameStatus::Ended),
+            'Ongoing should transition to Ended'
+        );
+        assert!(
+            !GameStatusTrait::can_transition_to(GameStatus::Ended, GameStatus::Ongoing),
+            'Ended should not go back to Ongoing'
+        );
+    }
+
+    #[test]
+    fn test_game_status_active() {
+        assert!(!GameStatusTrait::is_active(GameStatus::Pending), 'Pending should not be active');
+        assert!(GameStatusTrait::is_active(GameStatus::Ongoing), 'Ongoing should be active');
+        assert!(!GameStatusTrait::is_active(GameStatus::Ended), 'Ended should not be active');
+    }
+
+    #[test]
+    fn test_game_type_conversion_roundtrip() {
+        let all_types = GameTypeTrait::all();
+
+        for i in 0..all_types.len() {
+            let game_type = *all_types[i];
+            let felt_val: felt252 = game_type.into();
+            let converted_back: Option<GameType> = felt_val.try_into();
+
+            assert(converted_back.is_some(), 'GameType conversion should succeed');
+            assert(converted_back.unwrap() == game_type, 'Should match original game type');
+        }
+    }
+
+    #[test]
+    fn test_game_type_multiplayer() {
+        assert!(!GameTypeTrait::is_multiplayer(GameType::PublicGame), 'PublicGame should not be multiplayer');
+        assert!(GameTypeTrait::is_multiplayer(GameType::PrivateGame), 'PrivateGame should be multiplayer');
+    }
+}

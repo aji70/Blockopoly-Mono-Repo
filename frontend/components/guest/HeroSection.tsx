@@ -1,12 +1,11 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import herobg from "@/public/heroBg.png";
 import Image from 'next/image';
 import { Dices, KeyRound } from 'lucide-react';
 import { TypeAnimation } from 'react-type-animation';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-
 import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
 import { useAccount, useConnect, useDisconnect } from '@starknet-react/core';
 import { usePlayerActions } from '@/hooks/usePlayerActions';
@@ -15,6 +14,12 @@ import { useMovementActions } from '@/hooks/useMovementActions';
 import { usePropertyActions } from '@/hooks/usePropertyActions';
 import { useTradeActions } from '@/hooks/useTradeActions';
 import { shortString } from 'starknet';
+
+// TypeScript interface for the response from player.register
+interface RegisterResponse {
+  transaction_hash: string;
+  // Add other fields if returned by player.register
+}
 
 const HeroSection = () => {
   const { account, address } = useAccount();
@@ -40,53 +45,13 @@ const HeroSection = () => {
     card: '',
   });
 
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<RegisterResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [username, setUsername] = useState('');
-
-  const handleRequest = async (fn: () => Promise<any>, label: string) => {
-    setLoading(true);
-    setError(null);
-    setResponse(null);
-    try {
-      const res = await fn();
-      console.log(label, res);
-      setResponse(res);
-    } catch (err: any) {
-      console.error(label, err);
-      setError(err?.message || 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check registration status and fetch username
-  useEffect(() => {
-    if (isWasmSupported()) {
-      getWasmCapabilities();
-    }
-    if (address) {
-      const checkRegistration = async () => {
-        try {
-          const registered = await player.isRegistered(address);
-          setIsRegistered(registered);
-          if (registered) {
-            const user = await player.getUsernameFromAddress(address);
-            // Convert felt to string if user is a valid felt value
-            const decodedUsername = shortString.decodeShortString(user)
-
-            setUsername(decodedUsername);
-          }
-        } catch (err: any) {
-          console.error('Error checking registration:', err);
-          setError(err?.message || 'Failed to check registration status');
-        }
-      };
-      checkRegistration();
-    }
-  }, [address, player]);
+  const [registrationPending, setRegistrationPending] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const router = useRouter();
   const [gamerName, setGamerName] = useState('');
@@ -102,6 +67,64 @@ const HeroSection = () => {
   const handleRouteToJoinRoom = () => {
     router.push('/join-room');
   };
+
+  // Check registration status and fetch username
+  const checkRegistration = async () => {
+    try {
+      const registered = await player.isRegistered(address!);
+      setIsRegistered(registered);
+      if (registered) {
+        const user = await player.getUsernameFromAddress(address!);
+        const decodedUsername = shortString.decodeShortString(user);
+        setUsername(decodedUsername || 'Unknown');
+      } else {
+        setUsername('');
+      }
+    } catch (err: any) {
+      console.error('Error checking registration:', err);
+      setError(err?.message || 'Failed to check registration status');
+    }
+  };
+
+  const handleRequest = async (fn: () => Promise<RegisterResponse>, label: string) => {
+    setLoading(true);
+    setError(null);
+    setResponse(null);
+    setRegistrationPending(true); // Indicate registration is in progress
+    try {
+      const res = await fn();
+      console.log(label, res);
+      setResponse(res);
+
+      // Add a 5-second delay to allow contract state to update
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      // Re-check registration status after delay
+      if (address && label === 'register') {
+        await checkRegistration();
+      }
+
+      setRegistrationPending(false);
+      setSuccess('Registration successful!');
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      console.error(label, err);
+      setError(err?.message || 'Failed to register. Please try again.');
+      setRegistrationPending(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isWasmSupported()) {
+      getWasmCapabilities();
+    }
+    if (address) {
+      checkRegistration();
+    }
+  }, [address, player]);
 
   return (
     <section className="w-full lg:h-screen md:h-[calc(100vh-87px)] h-screen relative overflow-x-hidden md:mb-20 mb-10">
@@ -127,10 +150,24 @@ const HeroSection = () => {
 
       {/* overlay */}
       <main className="w-full h-full absolute top-0 left-0 z-20 bg-transparent flex flex-col lg:justify-center items-center gap-1">
-        {isRegistered && (
+        {isRegistered && !registrationPending && !success && (
           <div className="mt-20 md:mt-28 lg:mt-0">
             <p className="font-orbitron lg:text-[24px] md:text-[20px] text-[16px] font-[700] text-[#00F0FF] text-center">
               Welcome back, {username}!
+            </p>
+          </div>
+        )}
+        {registrationPending && (
+          <div className="mt-20 md:mt-28 lg:mt-0">
+            <p className="font-orbitron lg:text-[24px] md:text-[20px] text-[16px] font-[700] text-[#00F0FF] text-center">
+              Registering... Please wait.
+            </p>
+          </div>
+        )}
+        {success && (
+          <div className="mt-20 md:mt-28 lg:mt-0">
+            <p className="font-orbitron lg:text-[24px] md:text-[20px] text-[16px] font-[700] text-[#00F0FF] text-center">
+              {success}
             </p>
           </div>
         )}
@@ -168,7 +205,7 @@ const HeroSection = () => {
         </p>
 
         <div className="w-full flex flex-col justify-center items-center mt-3 gap-3">
-          {!isRegistered && (
+          {!isRegistered && !registrationPending && (
             <>
               <input
                 type="text"
@@ -211,6 +248,12 @@ const HeroSection = () => {
                 </span>
               </button>
             </>
+          )}
+          {error && (
+            <p className="text-red-400 text-sm text-center mt-2">{error}</p>
+          )}
+          {!registrationPending && !isRegistered && success && (
+            <p className="text-green-400 text-sm text-center mt-2">{success}</p>
           )}
 
           {/* join/create room */}
