@@ -16,12 +16,18 @@ pub trait IGame<T> {
 
     fn start_game(ref self: T, game_id: u256) -> bool;
     fn end_game(ref self: T, game_id: u256) -> ContractAddress;
+
+    fn leave_game(ref self: T, game_id: u256);
+
     fn retrieve_game(self: @T, game_id: u256) -> Game;
 
     fn mint(ref self: T, recepient: ContractAddress, game_id: u256, amount: u256);
 
     fn get_game_player(self: @T, address: ContractAddress, game_id: u256) -> GamePlayer;
     fn get_game_player_balance(self: @T, address: ContractAddress, game_id: u256) -> u256;
+
+    fn last_game(self: @T) -> u256;
+
 }
 
 // dojo decorator
@@ -74,6 +80,12 @@ pub mod game {
             let game: Game = world.read_model(game_id);
             game
         }
+
+        fn last_game(self: @ContractState) -> u256 {
+            let mut world = self.world_default();
+            let  game_counter: GameCounter = world.read_model('v0');
+            game_counter.current_val 
+        }
         fn create_game(
             ref self: ContractState, game_type: u8, player_symbol: u8, number_of_players: u8,
         ) -> u256 {
@@ -103,6 +115,10 @@ pub mod game {
 
             let game_id = self
                 .create_new_game(game_type_enum, player_symbol_enum, number_of_players);
+
+             let mut player: Player = world.read_model(get_caller_address());
+             player.last_game = game_id;
+             world.write_model(@player);
             game_id
         }
 
@@ -126,6 +142,10 @@ pub mod game {
             };
 
             self.join(player_symbol_enum, game_id);
+
+            let mut player: Player = world.read_model(get_caller_address());
+             player.last_game = game_id;
+             world.write_model(@player);
         }
 
         fn start_game(ref self: ContractState, game_id: u256) -> bool {
@@ -150,6 +170,60 @@ pub mod game {
             world.write_model(@game);
             true
         }
+
+     fn leave_game(ref self: ContractState, game_id: u256) {
+    // Load world state
+    let mut world = self.world_default();
+
+    // Retrieve the game
+    let mut game: Game = world.read_model(game_id);
+    assert(game.is_initialised, 'GAME NOT INITIALISED');
+
+    // Caller info
+    let caller_address = get_caller_address();
+    let caller_username_map: AddressToUsername = world.read_model(caller_address);
+    let caller_username = caller_username_map.username;
+    assert(caller_username != 0, 'PLAYER NOT REGISTERED');
+
+    // Retrieve the player's data for this game
+    let mut player: GamePlayer = world.read_model((caller_address, game_id));
+    assert(player.joined, 'PLAYER NOT JOINED');
+
+    // Remove the player from the game_players array using while loop
+    let mut new_players: Array<ContractAddress> = ArrayTrait::new();
+    let mut found = false;
+
+    let len = game.game_players.len();
+    let mut i = 0;
+    while i < len {
+        let current_addr: ContractAddress = *game.game_players[i];
+        if current_addr != caller_address {
+            new_players.append(current_addr);
+        } else {
+            found = true;
+        }
+        i += 1;
+    };
+    assert(found, 'PLAYER NOT IN GAME PLAYERS');
+
+    // Update game state
+    game.game_players = new_players;
+    game.players_joined -= 1;
+
+    // Update player state
+    player.joined = false;
+
+    // Game status logic
+    if game.players_joined == 0 && game.status == GameStatus::Ongoing {
+        game.status = GameStatus::Ended;
+    } else if game.status == GameStatus::Pending && game.players_joined == 0 {
+        game.status = GameStatus::Ended;
+    }
+
+    // Persist updates
+    world.write_model(@player);
+    world.write_model(@game);
+}
 
         fn mint(ref self: ContractState, recepient: ContractAddress, game_id: u256, amount: u256) {
             let mut world = self.world_default();
@@ -386,6 +460,7 @@ pub mod game {
             // Recount players and update the joined count
             game.players_joined = self.count_joined_players(game.id);
             game.game_players.append(get_caller_address());
+            game.players_joined += 1;
 
                  let mut player: GamePlayer = world.read_model((caller_address, game_id));
              assert(!player.joined, 'player already joined');

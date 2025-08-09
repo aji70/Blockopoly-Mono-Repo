@@ -99,6 +99,8 @@ export interface Player {
 	username: BigNumberish;
 	is_registered: boolean;
 	balance: BigNumberish;
+	last_game: BigNumberish;
+	active: boolean;
 	total_games_played: BigNumberish;
 	total_games_completed: BigNumberish;
 	total_games_won: BigNumberish;
@@ -387,6 +389,8 @@ export const schema: SchemaType = {
 			username: 0,
 			is_registered: false,
 		balance: 0,
+		last_game: 0,
+			active: false,
 		total_games_played: 0,
 		total_games_completed: 0,
 		total_games_won: 0,
