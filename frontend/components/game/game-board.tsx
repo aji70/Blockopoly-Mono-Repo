@@ -24,7 +24,7 @@ interface Player {
   position: number;
   balance: number;
   jailed: boolean;
-  propertiesOwned: number[];
+  properties_owned: number[];
   isNext: boolean;
   token: string;
 }
@@ -102,7 +102,13 @@ const GameBoard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [selectedCardType, setSelectedCardType] = useState<'Chance' | 'CommunityChest' | null>(null);
-  const [showMoreActions, setShowMoreActions] = useState(false);
+  const [modalState, setModalState] = useState({
+    property: false,
+    turn: false,
+    player: false,
+    management: false,
+    trade: false,
+  });
   const [tradeInputs, setTradeInputs] = useState<TradeInputs>({
     to: '',
     offeredPropertyIds: '',
@@ -113,6 +119,7 @@ const GameBoard = () => {
     tradeId: '',
     originalOfferId: '',
   });
+  const [propertyId, setPropertyId] = useState('');
 
   useEffect(() => {
     const id = searchParams.get('gameId') || localStorage.getItem('gameId');
@@ -219,7 +226,7 @@ const GameBoard = () => {
             position: Number(playerData.position || 0),
             balance: Number(playerData.balance || 0),
             jailed: Boolean(playerData.jailed),
-            propertiesOwned: playerData.properties_owned || [],
+            properties_owned: playerData.properties_owned || [],
             isNext: String(addr).toLowerCase() === String(currentPlayerAddress).toLowerCase(),
             token,
           };
@@ -258,7 +265,7 @@ const GameBoard = () => {
               position: Number(playerData.position || 0),
               balance: Number(playerData.balance || 0),
               jailed: Boolean(playerData.jailed),
-              propertiesOwned: playerData.properties_owned || [],
+              properties_owned: playerData.properties_owned || [],
               isNext: addr === String(currentPlayerAddress).toLowerCase(),
               token,
             };
@@ -297,7 +304,7 @@ const GameBoard = () => {
         balance: Number(playerData.balance || 0),
         position: Number(playerData.position || 0),
         jailed: Boolean(playerData.jailed),
-        propertiesOwned: playerData.properties_owned || [],
+        properties_owned: playerData.properties_owned || [],
         id: allPlayers.find((p) => p.address === String(playerAddress).toLowerCase())?.id || 0,
         isNext: String(playerAddress).toLowerCase() === String(currentPlayerAddress).toLowerCase(),
         token: playerToken,
@@ -480,6 +487,7 @@ const GameBoard = () => {
       setError(err.message || 'Error ending game.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, player: false }));
     }
   };
 
@@ -509,6 +517,7 @@ const GameBoard = () => {
       setError(err.message || 'Error leaving game.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, player: false }));
     }
   };
 
@@ -529,6 +538,7 @@ const GameBoard = () => {
       setError(err.message || 'Error paying jail fine.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, player: false }));
     }
   };
 
@@ -549,6 +559,7 @@ const GameBoard = () => {
       setError(err.message || 'Error using Chance Get Out of Jail card.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, player: false }));
     }
   };
 
@@ -569,86 +580,95 @@ const GameBoard = () => {
       setError(err.message || 'Error using Community Chest Get Out of Jail card.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, player: false }));
     }
   };
 
   const handleBuyHouseOrHotel = async () => {
-    if (!account || !gameId || !currentProperty) {
-      setError('Please connect your account, provide a valid Game ID, or select a property.');
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       await handleAction(
-        () => propertyActions.buyHouseOrHotel(account, currentProperty.id, gameId),
+        () => propertyActions.buyHouseOrHotel(account, Number(propertyId), gameId),
         'buyHouseOrHotel'
       );
+      setPropertyId('');
     } catch (err: any) {
       console.error('Buy House or Hotel Error:', err);
       setError(err.message || 'Error buying house or hotel.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, management: false }));
     }
   };
 
   const handleSellHouseOrHotel = async () => {
-    if (!account || !gameId || !currentProperty) {
-      setError('Please connect your account, provide a valid Game ID, or select a property.');
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       await handleAction(
-        () => propertyActions.sellHouseOrHotel(account, currentProperty.id, gameId),
+        () => propertyActions.sellHouseOrHotel(account, Number(propertyId), gameId),
         'sellHouseOrHotel'
       );
+      setPropertyId('');
     } catch (err: any) {
       console.error('Sell House or Hotel Error:', err);
       setError(err.message || 'Error selling house or hotel.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, management: false }));
     }
   };
 
   const handleMortgageProperty = async () => {
-    if (!account || !gameId || !currentProperty) {
-      setError('Please connect your account, provide a valid Game ID, or select a property.');
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       await handleAction(
-        () => propertyActions.mortgageProperty(account, currentProperty.id, gameId),
+        () => propertyActions.mortgageProperty(account, Number(propertyId), gameId),
         'mortgageProperty'
       );
+      setPropertyId('');
     } catch (err: any) {
       console.error('Mortgage Property Error:', err);
       setError(err.message || 'Error mortgaging property.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, management: false }));
     }
   };
 
   const handleUnmortgageProperty = async () => {
-    if (!account || !gameId || !currentProperty) {
-      setError('Please connect your account, provide a valid Game ID, or select a property.');
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       await handleAction(
-        () => propertyActions.unmortgageProperty(account, currentProperty.id, gameId),
+        () => propertyActions.unmortgageProperty(account, Number(propertyId), gameId),
         'unmortgageProperty'
       );
+      setPropertyId('');
     } catch (err: any) {
       console.error('Unmortgage Property Error:', err);
       setError(err.message || 'Error unmortgaging property.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, management: false }));
     }
   };
 
@@ -676,12 +696,12 @@ const GameBoard = () => {
         'offerTrade'
       );
       setTradeInputs(prev => ({ ...prev, to: '', offeredPropertyIds: '', requestedPropertyIds: '', cashOffer: '0', cashRequest: '0', tradeType: '0' }));
-      setShowMoreActions(false);
     } catch (err: any) {
       console.error('Offer Trade Error:', err);
       setError(err.message || 'Error offering trade.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, trade: false }));
     }
   };
 
@@ -698,12 +718,12 @@ const GameBoard = () => {
         'acceptTrade'
       );
       setTradeInputs(prev => ({ ...prev, tradeId: '' }));
-      setShowMoreActions(false);
     } catch (err: any) {
       console.error('Accept Trade Error:', err);
       setError(err.message || 'Error accepting trade.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, trade: false }));
     }
   };
 
@@ -720,12 +740,12 @@ const GameBoard = () => {
         'rejectTrade'
       );
       setTradeInputs(prev => ({ ...prev, tradeId: '' }));
-      setShowMoreActions(false);
     } catch (err: any) {
       console.error('Reject Trade Error:', err);
       setError(err.message || 'Error rejecting trade.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, trade: false }));
     }
   };
 
@@ -753,12 +773,12 @@ const GameBoard = () => {
         'counterTrade'
       );
       setTradeInputs(prev => ({ ...prev, to: '', offeredPropertyIds: '', requestedPropertyIds: '', cashOffer: '0', cashRequest: '0', tradeType: '0', originalOfferId: '' }));
-      setShowMoreActions(false);
     } catch (err: any) {
       console.error('Counter Trade Error:', err);
       setError(err.message || 'Error countering trade.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, trade: false }));
     }
   };
 
@@ -775,12 +795,12 @@ const GameBoard = () => {
         'approveCounterTrade'
       );
       setTradeInputs(prev => ({ ...prev, tradeId: '' }));
-      setShowMoreActions(false);
     } catch (err: any) {
       console.error('Approve Counter Trade Error:', err);
       setError(err.message || 'Error approving counter trade.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, trade: false }));
     }
   };
 
@@ -801,20 +821,20 @@ const GameBoard = () => {
       setError('You must process the drawn card before ending your turn.');
       return null;
     }
-    if (label === 'buyHouseOrHotel' && (!currentProperty || currentProperty.type !== 'property' || currentProperty.owner !== String(address).toLowerCase())) {
-      setError('Cannot buy house or hotel: you do not own this property or it is invalid.');
+    if (label === 'buyHouseOrHotel' && (!propertyId || Number(propertyId) === 0 || ownedProperties[Number(propertyId)]?.owner !== String(address).toLowerCase())) {
+      setError('Cannot buy house or hotel: invalid property ID or you do not own this property.');
       return null;
     }
-    if (label === 'sellHouseOrHotel' && (!currentProperty || currentProperty.type !== 'property' || currentProperty.owner !== String(address).toLowerCase())) {
-      setError('Cannot sell house or hotel: you do not own this property or it is invalid.');
+    if (label === 'sellHouseOrHotel' && (!propertyId || Number(propertyId) === 0 || ownedProperties[Number(propertyId)]?.owner !== String(address).toLowerCase())) {
+      setError('Cannot sell house or hotel: invalid property ID or you do not own this property.');
       return null;
     }
-    if (label === 'mortgageProperty' && (!currentProperty || currentProperty.type !== 'property' || currentProperty.owner !== String(address).toLowerCase())) {
-      setError('Cannot mortgage: you do not own this property or it is invalid.');
+    if (label === 'mortgageProperty' && (!propertyId || Number(propertyId) === 0 || ownedProperties[Number(propertyId)]?.owner !== String(address).toLowerCase())) {
+      setError('Cannot mortgage: invalid property ID or you do not own this property.');
       return null;
     }
-    if (label === 'unmortgageProperty' && (!currentProperty || currentProperty.type !== 'property')) {
-      setError('Cannot unmortgage: invalid property.');
+    if (label === 'unmortgageProperty' && (!propertyId || Number(propertyId) === 0)) {
+      setError('Cannot unmortgage: invalid property ID.');
       return null;
     }
     try {
@@ -834,23 +854,90 @@ const GameBoard = () => {
     }
   };
 
-  const handlePayTax = async () => {
-    if (!account || !gameId || !currentProperty || currentProperty.type !== 'special' || currentProperty.name !== 'Tax') {
-      setError('Please connect your account, provide a valid Game ID, or land on a Tax square to pay tax.');
+  const handleBuyProperty = async () => {
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
       return;
     }
     try {
       setIsLoading(true);
       setError(null);
       await handleAction(
-        () => movementActions.payTax(account, currentProperty.id, gameId),
+        () => propertyActions.buyProperty(account, Number(propertyId), gameId),
+        'buyProperty'
+      );
+      setPropertyId('');
+    } catch (err: any) {
+      console.error('Buy Property Error:', err);
+      setError(err.message || 'Error buying property.');
+    } finally {
+      setIsLoading(false);
+      setModalState(prev => ({ ...prev, property: false }));
+    }
+  };
+
+  const handlePayRent = async () => {
+    if (!account || !gameId || !propertyId) {
+      setError('Please connect your account, provide a valid Game ID, or enter a property ID.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setError(null);
+      await handleAction(
+        () => propertyActions.payRent(account, Number(propertyId), gameId),
+        'payRent'
+      );
+      setPropertyId('');
+    } catch (err: any) {
+      console.error('Pay Rent Error:', err);
+      setError(err.message || 'Error paying rent.');
+    } finally {
+      setIsLoading(false);
+      setModalState(prev => ({ ...prev, property: false }));
+    }
+  };
+
+  const handlePayTax = async () => {
+    if (!account || !gameId || !propertyId || (currentProperty && currentProperty.type !== 'special' && currentProperty.name !== 'Tax')) {
+      setError('Please connect your account, provide a valid Game ID, or enter a valid Tax square ID.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setError(null);
+      await handleAction(
+        () => movementActions.payTax(account, Number(propertyId), gameId),
         'payTax'
       );
+      setPropertyId('');
     } catch (err: any) {
-      console.error('payTax Error:', err);
+      console.error('Pay Tax Error:', err);
       setError(err.message || 'Error paying tax.');
     } finally {
       setIsLoading(false);
+      setModalState(prev => ({ ...prev, property: false }));
+    }
+  };
+
+  const handleEndTurn = async () => {
+    if (!account || !gameId) {
+      setError('Please connect your account and provide a valid Game ID.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setError(null);
+      await handleAction(
+        () => propertyActions.finishTurn(account, gameId),
+        'finishTurn'
+      );
+    } catch (err: any) {
+      console.error('End Turn Error:', err);
+      setError(err.message || 'Error ending turn.');
+    } finally {
+      setIsLoading(false);
+      setModalState(prev => ({ ...prev, turn: false }));
     }
   };
 
@@ -873,7 +960,7 @@ const GameBoard = () => {
         <div className="lg:w-2/3 flex justify-center items-center board-container">
           <div className="w-full max-w-[900px] bg-[#010F10] aspect-square rounded-lg relative game-board">
             <div className="grid grid-cols-11 grid-rows-11 w-full h-full gap-[2px] box-border">
-              <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4">
+              <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4 relative">
                 <h1 className="text-3xl lg:text-5xl font-bold text-[#F0F7F7] font-orbitron text-center mb-4">
                   Blockopoly
                 </h1>
@@ -891,7 +978,7 @@ const GameBoard = () => {
                     <button
                       onClick={rollDice}
                       aria-label="Roll the dice to move your player"
-                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm rounded-full shadow-lg hover:from-cyan-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200"
+                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm rounded-full hover:from-cyan-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200"
                     >
                       Roll Dice
                     </button>
@@ -902,53 +989,67 @@ const GameBoard = () => {
                     )}
                     <div className="flex flex-wrap gap-2 justify-center">
                       <button
-                        onClick={() => handleAction(() => propertyActions.buyProperty(account!, currentProperty?.id || 0, gameId!), 'buyProperty')}
-                        aria-label="Buy the current property"
-                        className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200"
+                        onClick={() => setModalState(prev => ({ ...prev, property: true }))}
+                        aria-label="Open property actions"
+                        className="px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200"
                       >
-                        Buy
+                        Property Actions
                       </button>
                       <button
-                        onClick={() => handleAction(() => propertyActions.payRent(account!, currentProperty?.id || 0, gameId!), 'payRent')}
-                        aria-label="Pay rent for the current property"
-                        className="px-3 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-orange-600 hover:to-amber-600 transform hover:scale-105 transition-all duration-200"
+                        onClick={() => setModalState(prev => ({ ...prev, turn: true }))}
+                        aria-label="Open turn actions"
+                        className="px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
                       >
-                        Pay Rent
+                        Turn Actions
                       </button>
                       <button
-                        onClick={() => handleAction(() => propertyActions.finishTurn(account!, gameId!), 'finishTurn')}
-                        aria-label="End your turn"
-                        className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
+                        onClick={() => setModalState(prev => ({ ...prev, player: true }))}
+                        aria-label="Open player actions"
+                        className="px-2 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs rounded-full hover:from-pink-600 hover:to-rose-600 transform hover:scale-105 transition-all duration-200"
                       >
-                        End Turn
+                        Player Actions
                       </button>
                       <button
-                        onClick={handlePayTax}
-                        aria-label="Pay tax for the current square"
-                        className="px-3 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-purple-600 hover:to-violet-600 transform hover:scale-105 transition-all duration-200"
+                        onClick={() => setModalState(prev => ({ ...prev, management: true }))}
+                        aria-label="Open property management actions"
+                        className="px-2 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs rounded-full hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-200"
                       >
-                        Pay Tax
+                        Property Mgmt
+                      </button>
+                      <button
+                        onClick={() => setModalState(prev => ({ ...prev, trade: true }))}
+                        aria-label="Open trade actions"
+                        className="px-2 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs rounded-full hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Trade Actions
                       </button>
                       <button
                         onClick={() => handleDrawCard('Chance')}
                         aria-label="Draw a Chance card"
-                        className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200"
+                        className="px-2 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-xs rounded-full hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200"
                       >
                         Draw Chance
                       </button>
                       <button
                         onClick={() => handleDrawCard('CommunityChest')}
                         aria-label="Draw a Community Chest card"
-                        className="px-3 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200"
+                        className="px-2 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs rounded-full hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200"
                       >
                         Draw CChest
                       </button>
                       <button
-                        onClick={() => setShowMoreActions(true)}
-                        aria-label="Show more actions"
-                        className="px-3 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-[0.9rem] rounded-full shadow-md hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                        onClick={handleEndGame}
+                        aria-label="End the game"
+                        className="px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200"
                       >
-                        More Actions
+                        End Game
+                      </button>
+                      <button
+                        onClick={handleLeaveGame}
+                        aria-label="Leave the game"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Leave Game
                       </button>
                     </div>
                     {error && (
@@ -958,7 +1059,7 @@ const GameBoard = () => {
                 </div>
                 {selectedCard && (
                   <div
-                    className="mt-4 p-3 rounded-lg w-full max-w-sm bg-cover bg-center"
+                    className="mt-4 p-3 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
                     style={{
                       backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
                     }}
@@ -977,10 +1078,356 @@ const GameBoard = () => {
                           }
                         }}
                         aria-label="Process the drawn card"
-                        className="px-3 py-1.5 bg-green-600 text-white text-[0.9rem] rounded-full hover:bg-green-700 transform hover:scale-105 transition-all duration-200"
+                        className="px-2 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs rounded-full hover:from-green-700 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200"
                         disabled={!selectedCardType}
                       >
                         Process
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedCard(null);
+                          setSelectedCardType(null);
+                        }}
+                        aria-label="Close card"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {modalState.player && (
+                  <div
+                    className="mt-4 p-4 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+                    style={{
+                      backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
+                    }}
+                  >
+                    <h2 className="text-lg font-semibold text-cyan-300 mb-3">Player Actions</h2>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handlePayJailFine}
+                        aria-label="Pay jail fine"
+                        className="px-2 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs rounded-full hover:from-pink-600 hover:to-rose-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Pay Jail Fine
+                      </button>
+                      <button
+                        onClick={handlePayGetoutOfJailChance}
+                        aria-label="Use Chance Get Out of Jail card"
+                        className="px-2 py-1 bg-gradient-to-r from-yellow-500 to-lime-500 text-white text-xs rounded-full hover:from-yellow-600 hover:to-lime-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Chance Jail Card
+                      </button>
+                      <button
+                        onClick={handlePayGetoutOfJailCommunity}
+                        aria-label="Use Community Chest Get Out of Jail card"
+                        className="px-2 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs rounded-full hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        CChest Jail Card
+                      </button>
+                      <button
+                        onClick={() => setModalState(prev => ({ ...prev, player: false }))}
+                        aria-label="Close player actions"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {modalState.property && (
+                  <div
+                    className="mt-4 p-4 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+                    style={{
+                      backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
+                    }}
+                  >
+                    <h2 className="text-lg font-semibold text-cyan-300 mb-3">Property Actions</h2>
+                    <input
+                      type="number"
+                      placeholder="Property ID"
+                      value={propertyId}
+                      onChange={(e) => setPropertyId(e.target.value)}
+                      className="w-full px-2 py-1 mb-3 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      aria-label="Enter property ID"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleBuyProperty}
+                        aria-label="Buy the property"
+                        className="px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Buy
+                      </button>
+                      <button
+                        onClick={handlePayRent}
+                        aria-label="Pay rent for the property"
+                        className="px-2 py-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs rounded-full hover:from-orange-600 hover:to-amber-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Pay Rent
+                      </button>
+                      <button
+                        onClick={handlePayTax}
+                        aria-label="Pay tax for the square"
+                        className="px-2 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-xs rounded-full hover:from-purple-600 hover:to-violet-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Pay Tax
+                      </button>
+                      <button
+                        onClick={() => setModalState(prev => ({ ...prev, property: false }))}
+                        aria-label="Close property actions"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {modalState.turn && (
+                  <div
+                    className="mt-4 p-4 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
+                    style={{
+                      backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
+                    }}
+                  >
+                    <h2 className="text-lg font-semibold text-cyan-300 mb-3">Turn Actions</h2>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleEndTurn}
+                        aria-label="End your turn"
+                        className="px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        End Turn
+                      </button>
+                      <button
+                        onClick={() => setModalState(prev => ({ ...prev, turn: false }))}
+                        aria-label="Close turn actions"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {modalState.trade && (
+                  <div
+                    className="mt-4 p-4 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 overflow-y-auto max-h-[80vh]"
+                    style={{
+                      backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
+                    }}
+                  >
+                    <h2 className="text-lg font-semibold text-cyan-300 mb-3">Trade Actions</h2>
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold text-cyan-300 mb-2">Offer Trade</h3>
+                      <input
+                        type="text"
+                        placeholder="To Address"
+                        value={tradeInputs.to}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, to: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter recipient address"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Offered Property IDs (comma-separated)"
+                        value={tradeInputs.offeredPropertyIds}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, offeredPropertyIds: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter offered property IDs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Requested Property IDs (comma-separated)"
+                        value={tradeInputs.requestedPropertyIds}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, requestedPropertyIds: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter requested property IDs"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Cash Offer"
+                        value={tradeInputs.cashOffer}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, cashOffer: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter cash offer amount"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Cash Request"
+                        value={tradeInputs.cashRequest}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, cashRequest: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter cash request amount"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Trade Type"
+                        value={tradeInputs.tradeType}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeType: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter trade type"
+                      />
+                      <button
+                        onClick={handleOfferTrade}
+                        aria-label="Offer a trade"
+                        className="px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs rounded-full hover:from-blue-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Offer Trade
+                      </button>
+                    </div>
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold text-cyan-300 mb-2">Manage Trades</h3>
+                      <input
+                        type="number"
+                        placeholder="Trade ID"
+                        value={tradeInputs.tradeId}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeId: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter trade ID"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleAcceptTrade}
+                          aria-label="Accept a trade"
+                          className="px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200"
+                        >
+                          Accept Trade
+                        </button>
+                        <button
+                          onClick={handleRejectTrade}
+                          aria-label="Reject a trade"
+                          className="px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200"
+                        >
+                          Reject Trade
+                        </button>
+                        <button
+                          onClick={handleApproveCounterTrade}
+                          aria-label="Approve a counter trade"
+                          className="px-2 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs rounded-full hover:from-teal-600 hover:to-cyan-600 transform hover:scale-105 transition-all duration-200"
+                        >
+                          Approve Counter
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <h3 className="text-sm font-semibold text-cyan-300 mb-2">Counter Trade</h3>
+                      <input
+                        type="number"
+                        placeholder="Original Offer ID"
+                        value={tradeInputs.originalOfferId}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, originalOfferId: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter original offer ID"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Offered Property IDs (comma-separated)"
+                        value={tradeInputs.offeredPropertyIds}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, offeredPropertyIds: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter offered property IDs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Requested Property IDs (comma-separated)"
+                        value={tradeInputs.requestedPropertyIds}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, requestedPropertyIds: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter requested property IDs"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Cash Offer"
+                        value={tradeInputs.cashOffer}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, cashOffer: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter cash offer amount"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Cash Request"
+                        value={tradeInputs.cashRequest}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, cashRequest: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter cash request amount"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Trade Type"
+                        value={tradeInputs.tradeType}
+                        onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeType: e.target.value }))}
+                        className="w-full px-2 py-1 mb-2 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        aria-label="Enter trade type"
+                      />
+                      <button
+                        onClick={handleCounterTrade}
+                        aria-label="Counter a trade"
+                        className="px-2 py-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs rounded-full hover:from-purple-600 hover:to-indigo-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Counter Trade
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setModalState(prev => ({ ...prev, trade: false }))}
+                      aria-label="Close trade actions"
+                      className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
+                {modalState.management && (
+                  <div
+                    className="mt-4 p-4 rounded-lg w-full max-w-sm bg-cover bg-center absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 overflow-y-auto max-h-[80vh]"
+                    style={{
+                      backgroundImage: `url('https://images.unsplash.com/photo-1620283088057-7d4241262d45'), linear-gradient(to bottom, rgba(14, 40, 42, 0.8), rgba(14, 40, 42, 0.8))`,
+                    }}
+                  >
+                    <h2 className="text-lg font-semibold text-cyan-300 mb-3">Property Management</h2>
+                    <input
+                      type="number"
+                      placeholder="Property ID"
+                      value={propertyId}
+                      onChange={(e) => setPropertyId(e.target.value)}
+                      className="w-full px-2 py-1 mb-3 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      aria-label="Enter property ID"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleBuyHouseOrHotel}
+                        aria-label="Buy a house or hotel"
+                        className="px-2 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs rounded-full hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Buy House/Hotel
+                      </button>
+                      <button
+                        onClick={handleSellHouseOrHotel}
+                        aria-label="Sell a house or hotel"
+                        className="px-2 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full hover:from-amber-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Sell House/Hotel
+                      </button>
+                      <button
+                        onClick={handleMortgageProperty}
+                        aria-label="Mortgage the property"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-600 to-gray-800 text-white text-xs rounded-full hover:from-gray-700 hover:to-gray-900 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Mortgage
+                      </button>
+                      <button
+                        onClick={handleUnmortgageProperty}
+                        aria-label="Unmortgage the property"
+                        className="px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs rounded-full hover:from-green-600 hover:to-emerald-600 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Unmortgage
+                      </button>
+                      <button
+                        onClick={() => setModalState(prev => ({ ...prev, management: false }))}
+                        aria-label="Close property management actions"
+                        className="px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-xs rounded-full hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
+                      >
+                        Close
                       </button>
                     </div>
                   </div>
@@ -1033,13 +1480,13 @@ const GameBoard = () => {
                 placeholder="Enter game ID"
                 value={inputGameId}
                 onChange={(e) => setInputGameId(e.target.value)}
-                className="px-2 py-1 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 flex-grow"
+                className="px-2 py-1 bg-gray-800 text-white text-sm rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 flex-grow"
                 aria-label="Enter game ID to join"
               />
               <button
                 onClick={handleGameIdSubmit}
                 aria-label="Submit game ID"
-                className="px-3 py-1.5 bg-green-600 text-white text-[0.9rem] rounded-full hover:bg-green-700 transform hover:scale-105 transition-all duration-200"
+                className="px-2 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-xs rounded-full hover:from-green-700 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200"
               >
                 Submit
               </button>
@@ -1131,279 +1578,7 @@ const GameBoard = () => {
             </div>
           </div>
         </div>
-
-        {/* More Actions Modal */}
-        {showMoreActions && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-[#010F10] p-6 rounded-lg w-full max-w-md">
-              <h2 className="text-lg font-semibold text-cyan-300 mb-4">More Actions</h2>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={handleEndGame}
-                  aria-label="End the game"
-                  className="px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-red-600 hover:to-pink-600 transform hover:scale-105 transition-all duration-200"
-                >
-                  End Game
-                </button>
-                <button
-                  onClick={handleLeaveGame}
-                  aria-label="Leave the game"
-                  className="px-3 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-[0.9rem] rounded-full shadow-md hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
-                >
-                  Leave Game
-                </button>
-                <button
-                  onClick={handlePayJailFine}
-                  aria-label="Pay jail fine"
-                  className="px-3 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-pink-600 hover:to-rose-600 transform hover:scale-105 transition-all duration-200"
-                >
-                  Pay Jail Fine
-                </button>
-                <button
-                  onClick={handlePayGetoutOfJailChance}
-                  aria-label="Use Chance Get Out of Jail card"
-                  className="px-3 py-1 bg-gradient-to-r from-yellow-600 to-orange-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-yellow-700 hover:to-orange-700 transform hover:scale-105 transition-all duration-200"
-                >
-                  Use Chance Jail Card
-                </button>
-                <button
-                  onClick={handlePayGetoutOfJailCommunity}
-                  aria-label="Use Community Chest Get Out of Jail card"
-                  className="px-3 py-1 bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-teal-700 hover:to-cyan-700 transform hover:scale-105 transition-all duration-200"
-                >
-                  Use CChest Jail Card
-                </button>
-                <button
-                  onClick={handleBuyHouseOrHotel}
-                  aria-label="Buy a house or hotel"
-                  className="px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-indigo-600 hover:to-purple-600 transform hover:scale-105 transition-all duration-200"
-                >
-                  Buy House/Hotel
-                </button>
-                <button
-                  onClick={handleSellHouseOrHotel}
-                  aria-label="Sell a house or hotel"
-                  className="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[0.9rem] rounded-full shadow-md hover:from-amber-600 hover:to-orange-600 transform hover:scale-105 transition-all duration-200"
-                >
-                  Sell House/Hotel
-                </button>
-                <button
-                  onClick={handleMortgageProperty}
-                  aria-label="Mortgage the current property"
-                  className="px-3 py-1 bg-gradient-to-r from-gray-600 to-gray-800 text-white text-[0.9rem] rounded-full shadow-md hover:from-gray-700 hover:to-gray-900 transform hover:scale-105 transition-all duration-200"
-                >
-                  Mortgage
-                </button>
-                <button
-                  onClick={handleUnmortgageProperty}
-                  aria-label="Unmortgage the current property"
-                  className="px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-green-700 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200"
-                >
-                  Unmortgage
-                </button>
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold text-cyan-300 mb-2">Offer Trade</h3>
-                  <input
-                    type="text"
-                    placeholder="To Address"
-                    value={tradeInputs.to}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, to: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Offered Property IDs (comma-separated)"
-                    value={tradeInputs.offeredPropertyIds}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, offeredPropertyIds: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Requested Property IDs (comma-separated)"
-                    value={tradeInputs.requestedPropertyIds}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, requestedPropertyIds: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cash Offer"
-                    value={tradeInputs.cashOffer}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, cashOffer: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cash Request"
-                    value={tradeInputs.cashRequest}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, cashRequest: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Trade Type"
-                    value={tradeInputs.tradeType}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeType: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <button
-                    onClick={handleOfferTrade}
-                    aria-label="Offer a trade"
-                    className="w-full px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Offer Trade
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold text-cyan-300 mb-2">Trade Actions</h3>
-                  <input
-                    type="number"
-                    placeholder="Trade ID"
-                    value={tradeInputs.tradeId}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeId: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <button
-                    onClick={handleAcceptTrade}
-                    aria-label="Accept a trade"
-                    className="w-full px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-green-700 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Accept Trade
-                  </button>
-                  <button
-                    onClick={handleRejectTrade}
-                    aria-label="Reject a trade"
-                    className="w-full px-3 py-1 bg-gradient-to-r from-red-600 to-pink-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-red-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Reject Trade
-                  </button>
-                  <button
-                    onClick={handleApproveCounterTrade}
-                    aria-label="Approve a counter trade"
-                    className="w-full px-3 py-1 bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-teal-700 hover:to-cyan-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Approve Counter Trade
-                  </button>
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold text-cyan-300 mb-2">Counter Trade</h3>
-                  <input
-                    type="number"
-                    placeholder="Original Offer ID"
-                    value={tradeInputs.originalOfferId}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, originalOfferId: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Offered Property IDs (comma-separated)"
-                    value={tradeInputs.offeredPropertyIds}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, offeredPropertyIds: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Requested Property IDs (comma-separated)"
-                    value={tradeInputs.requestedPropertyIds}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, requestedPropertyIds: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cash Offer"
-                    value={tradeInputs.cashOffer}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, cashOffer: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Cash Request"
-                    value={tradeInputs.cashRequest}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, cashRequest: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Trade Type"
-                    value={tradeInputs.tradeType}
-                    onChange={(e) => setTradeInputs(prev => ({ ...prev, tradeType: e.target.value }))}
-                    className="w-full px-2 py-1 mb-2 bg-gray-200 text-black text-sm rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                  <button
-                    onClick={handleCounterTrade}
-                    aria-label="Counter a trade"
-                    className="w-full px-3 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[0.9rem] rounded-full shadow-md hover:from-purple-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Counter Trade
-                  </button>
-                </div>
-                <button
-                  onClick={() => setShowMoreActions(false)}
-                  aria-label="Close more actions"
-                  className="mt-4 px-3 py-1 bg-gradient-to-r from-gray-500 to-gray-700 text-white text-[0.9rem] rounded-full shadow-md hover:from-gray-600 hover:to-gray-800 transform hover:scale-105 transition-all duration-200"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-
-      <style jsx>{`
-        * {
-          box-sizing: border-box;
-        }
-        @media only screen and (max-width: 768px) and (orientation: portrait) {
-          .rotate-prompt {
-            display: flex;
-          }
-          .board-container {
-            transform: rotate(90deg);
-            transform-origin: center;
-            width: 100vh;
-            height: 100vw;
-            max-width: 100vw;
-            max-height: 100vh;
-            position: relative;
-            top: calc((100vw - 100vh) / 2);
-            left: calc((100vh - 100vw) / 2);
-            overflow: visible;
-          }
-          .game-board {
-            font-size: 0.8rem;
-          }
-          .sidebar {
-            transform: rotate(90deg);
-            transform-origin: center;
-            position: absolute;
-            top: calc((100vw - 100vh) / 2);
-            left: calc(100vh - 100vw + 10px);
-            width: calc(100vh / 3);
-            height: 100vw;
-            font-size: 0.8rem;
-          }
-        }
-        @media only screen and (max-width: 768px) and (orientation: landscape) {
-          .rotate-prompt {
-            display: none;
-          }
-          .board-container {
-            transform: none;
-            width: 100%;
-            max-width: 600px;
-            aspect-ratio: 1/1;
-          }
-          .game-board {
-            font-size: 0.9rem;
-          }
-          .sidebar {
-            transform: none;
-            width: 33.33%;
-            height: auto;
-            font-size: 0.9rem;
-          }
-        }
-      `}</style>
     </ErrorBoundary>
   );
 };
