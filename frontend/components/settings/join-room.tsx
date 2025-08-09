@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import { IoIosAddCircle } from 'react-icons/io';
 import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
-import { useAccount, useConnect, useDisconnect } from '@starknet-react/core';
+import { useAccount } from '@starknet-react/core';
 import { usePlayerActions } from '@/hooks/usePlayerActions';
 import { useGameActions } from '@/hooks/useGameActions';
 import { shortString } from 'starknet';
+import GameRoomLoading from './game-room-loading';
 
-// Interfaces for type safety
 interface Token {
   name: string;
   emoji: string;
@@ -43,127 +43,251 @@ const tokens: Token[] = [
 
 const JoinRoom = () => {
   const { account, address } = useAccount();
-  const { connect } = useConnect();
-  const { disconnect } = useDisconnect();
   const game = useGameActions();
   const player = usePlayerActions();
   const router = useRouter();
 
   const [showModal, setShowModal] = useState(false);
   const [gameType, setGameType] = useState('');
-  const [selectedToken, setSelectedToken] = useState(''); // For Create Game modal
-  const [joinTokenValue, setJoinTokenValue] = useState<number | ''>(''); // For Join Game number input
+  const [selectedToken, setSelectedToken] = useState('');
+  const [joinTokenValue, setJoinTokenValue] = useState<number | null>(null);
   const [numberOfPlayers, setNumberOfPlayers] = useState('');
-  const [roomId, setRoomId] = useState<number | ''>('');
-  const [continueGameId, setContinueGameId] = useState<number | ''>('');
+  const [roomId, setRoomId] = useState<number | null>(null);
+  const [continueGameId, setContinueGameId] = useState<number | null>(null);
   const [username, setUsername] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ongoingGames, setOngoingGames] = useState<number[]>([]);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [isJoiningGame, setIsJoiningGame] = useState(false);
 
   useEffect(() => {
     if (isWasmSupported()) {
       getWasmCapabilities();
     }
     if (address) {
+      let isMounted = true;
       const checkRegistration = async () => {
         try {
           const registered = await player.isRegistered(address);
+          if (!isMounted) return;
           setIsRegistered(registered);
           if (registered) {
             const user = await player.getUsernameFromAddress(address);
-            setUsername(shortString.decodeShortString(user));
+            if (!isMounted) return;
+            setUsername(shortString.decodeShortString(user) || 'Unknown');
           }
         } catch (err: any) {
+          if (!isMounted) return;
           setError(err?.message || 'Failed to check registration status');
         }
       };
       checkRegistration();
-
-      const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as number[];
-      setOngoingGames(storedGames);
+      return () => {
+        isMounted = false;
+      };
     }
+    const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as number[];
+    setOngoingGames(storedGames);
   }, [address, player]);
 
-  const handleRequest = async (fn: () => Promise<any>, label: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fn();
-      console.log(`${label} Response:`, res);
-      return res;
-    } catch (err: any) {
-      console.error(`${label} Error:`, err);
-      setError(err?.message || `Failed to ${label.toLowerCase()}`);
-      return null;
-    } finally {
-      setLoading(false);
+  const waitForLastGameUpdate = async (
+    expectedGameId: number,
+    maxWait: number = 90000
+  ) => {
+    const startTime = Date.now();
+    const delay = 2000;
+    const maxAttempts = 45; // 90s / 2s per attempt
+    let attempts = 0;
+
+    while (attempts < maxAttempts && Date.now() - startTime < maxWait) {
+      try {
+        const lastGame = Number(await game.lastGame());
+        console.log(
+          `Polled lastGame: ${lastGame}, Expected: ${expectedGameId}, Attempt: ${attempts + 1}`
+        );
+        if (lastGame === expectedGameId && lastGame > 0) {
+          return lastGame;
+        }
+      } catch (err: any) {
+        console.warn(`Error polling lastGame (Attempt ${attempts + 1}):`, err.message);
+      }
+      attempts++;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
+    console.warn(`lastGame did not update. Last: ${await game.lastGame()}, Expected: ${expectedGameId}`);
+    return null; // Trigger fallback
   };
 
   const handleCreateGame = async () => {
-    if (!account || !address) return setError('Please connect your wallet');
-    if (!isRegistered) return setError('Please register before creating a game');
-    if (!gameType || !selectedToken || !numberOfPlayers) return setError('Please fill in all fields');
+    if (!account || !address) {
+      setError('Please connect your wallet');
+      return;
+    }
+    if (!isRegistered) {
+      setError('Please register before creating a game');
+      return;
+    }
+    if (!gameType || !selectedToken || !numberOfPlayers) {
+      setError('Please fill in all fields');
+      return;
+    }
 
-    const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
-    if (!tokenValue) return setError('Invalid token selected');
+    const gameTypeNum = Number(gameType);
+    const numPlayers = Number(numberOfPlayers);
+    if (isNaN(gameTypeNum) || gameTypeNum < 0) {
+      setError('Game type must be a non-negative number');
+      return;
+    }
+    if (isNaN(numPlayers) || numPlayers < 2 || numPlayers > 8) {
+      setError('Number of players must be between 2 and 8');
+      return;
+    }
 
-    const res = await handleRequest(
-      () => game.createGame(account, +gameType, tokenValue, +numberOfPlayers),
-      'Create Game'
-    );
+    const tokenValue = tokens.find((t: Token) => t.name === selectedToken)?.value;
+    if (!tokenValue) {
+      setError('Invalid token selected');
+      return;
+    }
 
-    if (res) {
-      const gameId = Number(res);
-      const updatedGames = [...new Set([...ongoingGames, gameId])];
+    setIsCreatingGame(true);
+    setError(null);
+
+    try {
+      // Step 1: Get initial lastGame value
+      const initialLastGame = Number(await game.lastGame());
+      console.log(`Initial lastGame before create: ${initialLastGame}`);
+
+      // Step 2: Call createGame once
+      console.log(`Creating game with type: ${gameTypeNum}, token: ${tokenValue}, players: ${numPlayers}`);
+      const tx = await game.createGame(account, gameTypeNum, tokenValue, numPlayers);
+      console.log('Create game transaction:', tx);
+
+      if (!tx?.transaction_hash) {
+        throw new Error('No transaction hash returned from createGame');
+      }
+
+      // Step 3: Wait 30 seconds for contract to process
+      console.log('Waiting 30 seconds for contract to update...');
+      await new Promise((resolve) => setTimeout(resolve, 30000));
+
+      // Step 4: Assume new game ID is initialLastGame + 1
+      const newGameId = initialLastGame + 1;
+      console.log(`Assuming new game ID: ${newGameId}`);
+
+      // Step 5: Verify lastGame for debugging
+      try {
+        const currentLastGame = Number(await game.lastGame());
+        console.log(`Current lastGame after create: ${currentLastGame}`);
+        if (currentLastGame !== newGameId) {
+          console.warn(`Warning: lastGame (${currentLastGame}) does not match assumed gameId (${newGameId})`);
+        }
+      } catch (err: any) {
+        console.warn('Error verifying lastGame:', err.message, err.stack);
+      }
+
+      const updatedGames = [...new Set([...ongoingGames, newGameId])];
       setOngoingGames(updatedGames);
-      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames)); // Fixed JSON error
       setShowModal(false);
-      router.push(`/game-play?gameId=${gameId}`);
+      router.push(`/game-waiting?gameId=${newGameId}&creator=${address}`);
+    } catch (err: any) {
+      console.error('Create game error:', err.message, err.stack);
+      setError(err?.message || 'Failed to create game. Please try again.');
+    } finally {
+      setIsCreatingGame(false);
     }
   };
 
   const handleJoinRoom = async (id?: number) => {
-    if (!account || !address) return setError('Please connect your wallet');
-    if (!isRegistered) return setError('Please register before joining a game');
-    if (loading) return setError('Action in progress, please wait');
-
-    const selectedId = id !== undefined ? id : (typeof roomId === 'string' ? parseInt(roomId) : roomId);
-    if (isNaN(selectedId) || !selectedId) return setError('Please enter a valid room ID');
-    
-    // Validate token value for joining a new game
-    if (id === undefined && (isNaN(Number(joinTokenValue)) || +joinTokenValue > 8)) {
-      return setError('Please enter a valid token value (1-8)');
+    if (!account || !address) {
+      setError('Please connect your wallet');
+      return;
+    }
+    if (!isRegistered) {
+      setError('Please register before joining a game');
+      return;
+    }
+    if (loading) {
+      setError('Action in progress, please wait');
+      return;
     }
 
-    const tokenValue = id === undefined ? Number(joinTokenValue) : 0; // Use 0 for ongoing games
-    const res = await handleRequest(
-      () => game.joinGame(account, selectedId, tokenValue),
-      'Join Game'
-    );
+    const selectedId = id !== undefined ? id : roomId;
+    if (!selectedId || isNaN(selectedId) || selectedId <= 0) {
+      setError('Please enter a valid game ID');
+      return;
+    }
 
-    if (res) {
+    if (id === undefined && (!joinTokenValue || joinTokenValue < 1 || joinTokenValue > 8)) {
+      setError('Please enter a valid token value (1-8)');
+      return;
+    }
+
+    const tokenValue = id === undefined ? joinTokenValue! : 0;
+    setIsJoiningGame(true);
+    setError(null);
+
+    try {
+      console.log(`Joining game with ID: ${selectedId}, token: ${tokenValue}`);
+      const tx = await game.joinGame(account, selectedId, tokenValue);
+      console.log('Join game transaction:', tx);
+
+      if (!tx?.transaction_hash) {
+        throw new Error('No transaction hash returned from joinGame');
+      }
+
+      const lastGame = await waitForLastGameUpdate(selectedId);
       const updatedGames = [...new Set([...ongoingGames, selectedId])];
       setOngoingGames(updatedGames);
       localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
-      router.push(`/game-play?gameId=${selectedId}`);
+
+      if (lastGame === selectedId) {
+        console.log('Game joined successfully with gameId:', selectedId);
+        router.push(`/game-waiting?gameId=${selectedId}`);
+      } else {
+        console.warn('lastGame check failed, proceeding with fallback');
+        setError('Game joined, but lastGame update not confirmed. Proceeding to waiting room.');
+        router.push(`/game-waiting?gameId=${selectedId}`);
+      }
+    } catch (err: any) {
+      console.error('Join game error:', err.message, err.stack);
+      setError(err?.message || 'Failed to join game. Please try again.');
+    } finally {
+      setIsJoiningGame(false);
     }
   };
 
   const handleContinueGame = async () => {
-    if (!account || !address) return setError('Please connect your wallet');
-    if (!isRegistered) return setError('Please register before continuing a game');
-    if (loading) return setError('Action in progress, please wait');
+    if (!account || !address) {
+      setError('Please connect your wallet');
+      return;
+    }
+    if (!isRegistered) {
+      setError('Please register before continuing a game');
+      return;
+    }
+    if (loading) {
+      setError('Action in progress, please wait');
+      return;
+    }
+    if (!continueGameId || isNaN(continueGameId) || continueGameId <= 0) {
+      setError('Please enter a valid game ID');
+      return;
+    }
 
-    const gameId = typeof continueGameId === 'string' ? parseInt(continueGameId) : continueGameId;
-    if (isNaN(gameId) || !gameId) return setError('Please enter a valid game ID');
+    setLoading(true);
+    setError(null);
 
-    const res = await handleRequest(() => game.getGame(gameId), 'Continue Game');
-
-    if (res) {
-      router.push(`/game-play?gameId=${gameId}`);
+    try {
+      console.log(`Continuing game with ID: ${continueGameId}`);
+      router.push(`/game-waiting?gameId=${continueGameId}`);
+    } catch (err: any) {
+      console.error('Continue game error:', err.message, err.stack);
+      setError(err?.message || 'Failed to continue game. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -171,6 +295,10 @@ const JoinRoom = () => {
     localStorage.removeItem('ongoingGames');
     setOngoingGames([]);
   };
+
+  if (isCreatingGame || isJoiningGame) {
+    return <GameRoomLoading action={isCreatingGame ? 'create' : 'join'} />;
+  }
 
   return (
     <section className="w-full min-h-screen bg-settings bg-cover bg-fixed bg-center">
@@ -296,8 +424,8 @@ const JoinRoom = () => {
             <input
               type="number"
               placeholder="Enter game ID (e.g., 1)"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value ? parseInt(e.target.value) : '')}
+              value={roomId ?? ''}
+              onChange={(e) => setRoomId(e.target.value ? parseInt(e.target.value) : null)}
               className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
               disabled={loading}
             />
@@ -308,8 +436,8 @@ const JoinRoom = () => {
                 min={1}
                 max={8}
                 placeholder="Enter token value (e.g., 1)"
-                value={joinTokenValue}
-                onChange={(e) => setJoinTokenValue(e.target.value ? parseInt(e.target.value) : '')}
+                value={joinTokenValue ?? ''}
+                onChange={(e) => setJoinTokenValue(e.target.value ? parseInt(e.target.value) : null)}
                 className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
                 disabled={loading}
               />
@@ -347,8 +475,8 @@ const JoinRoom = () => {
             <input
               type="number"
               placeholder="Enter game ID (e.g., 1)"
-              value={continueGameId}
-              onChange={(e) => setContinueGameId(e.target.value ? parseInt(e.target.value) : '')}
+              value={continueGameId ?? ''}
+              onChange={(e) => setContinueGameId(e.target.value ? parseInt(e.target.value) : null)}
               className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
               disabled={loading}
             />
@@ -420,7 +548,7 @@ const JoinRoom = () => {
                   <input
                     type="number"
                     min={2}
-                    max={6}
+                    max={8}
                     value={numberOfPlayers}
                     onChange={(e) => setNumberOfPlayers(e.target.value)}
                     className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"

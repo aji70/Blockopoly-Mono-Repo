@@ -101,6 +101,23 @@ export function setupWorld(provider: DojoProvider) {
 		}
 	};
 
+	const build_game_lastGame_calldata = (): DojoCall => {
+		return {
+			contractName: "game",
+			entrypoint: "last_game",
+			calldata: [],
+		};
+	};
+
+	const game_lastGame = async () => {
+		try {
+			return await provider.call("blockopoly", build_game_lastGame_calldata());
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
 	const build_game_mint_calldata = (recepient: string, gameId: BigNumberish, amount: BigNumberish): DojoCall => {
 		return {
 			contractName: "game",
@@ -713,6 +730,8 @@ export function setupWorld(provider: DojoProvider) {
 			buildGetGamePlayerBalanceCalldata: build_game_getGamePlayerBalance_calldata,
 			joinGame: game_joinGame,
 			buildJoinGameCalldata: build_game_joinGame_calldata,
+			lastGame: game_lastGame,
+			buildLastGameCalldata: build_game_lastGame_calldata,
 			mint: game_mint,
 			buildMintCalldata: build_game_mint_calldata,
 			retrieveGame: game_retrieveGame,

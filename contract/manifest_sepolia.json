@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x59a6df948e99a74805aa5eaf76e8afd0676496a627eea4fbfe673856b26e891",
-    "seed": "oladeleali",
+    "address": "0x77a747fb791d28bcba8b677988aed4e747205115704ce07b0a9d34a4d465862",
+    "seed": "bajoinberttoios",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,8 +1328,8 @@
   },
   "contracts": [
     {
-      "address": "0x461b34ce4e39a86c508cf285cf6c04fb91820cdbeb985281228b858092c191d",
-      "class_hash": "0x1d40cf0b018e940ee8239f91e4e7e889128f0fe33dfc9799afe724909f30ba8",
+      "address": "0x620f42d2dddaa7231c6e865f27b3fba008c17d24f11fb9712475dac515a5d2f",
+      "class_hash": "0x4c54c8d1c4a1a4798ba333fd6fdf741aceb314d1890b0cab80965ab21a7c323",
       "abi": [
         {
           "type": "impl",
@@ -1907,6 +1907,17 @@
                 }
               ],
               "state_mutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "last_game",
+              "inputs": [],
+              "outputs": [
+                {
+                  "type": "core::integer::u256"
+                }
+              ],
+              "state_mutability": "view"
             }
           ]
         },
@@ -2038,7 +2049,7 @@
       ]
     },
     {
-      "address": "0x333adcdf63bd79307575b09b7e58d9029153d677dc8709e11fe554b5e14e635",
+      "address": "0x7ac589cc1550bb6158c48304c3d02e73c55df98aed5170a66471c91f88aac6b",
       "class_hash": "0x2f505d476a9b40b16f7a83dfe3994646514331d552beb92019d4440d59b8c8b",
       "abi": [
         {
@@ -2420,8 +2431,8 @@
       ]
     },
     {
-      "address": "0x5b930ba8d34bafbca0d37b15fd4796b37de4e99d621e0c4432a72706863f81c",
-      "class_hash": "0x2c35b79d2c5300a7d4ae492cc3094ddcb77611795eb97288067a334487b961f",
+      "address": "0xdddd4ec964d2ff5a3929abeb7dd130463f87a7f3463ea65366da2883f79bef",
+      "class_hash": "0x5c293b9519284310a34dc395289b68bf291e466fdb6c8b1a5e76d81ada41caa",
       "abi": [
         {
           "type": "impl",
@@ -2525,6 +2536,14 @@
             {
               "name": "balance",
               "type": "core::integer::u256"
+            },
+            {
+              "name": "last_game",
+              "type": "core::integer::u256"
+            },
+            {
+              "name": "active",
+              "type": "core::bool"
             },
             {
               "name": "total_games_played",
@@ -2738,7 +2757,7 @@
       ]
     },
     {
-      "address": "0x68e6e41a24a66237469c59c3c97b6a46404d242190df28d7afb0f4e502e0f69",
+      "address": "0x6627b3e0c69ec0e6b21e181adea6b10b419ec44f017680faacb466f5048bd5b",
       "class_hash": "0x44faa50f8b0de73a17971b37891610fe7b52ddccdc206019fb4a539dafcd843",
       "abi": [
         {
@@ -3418,7 +3437,7 @@
       ]
     },
     {
-      "address": "0x20a22d8109073adbc44e2d2ae68f4d92c75a5d4ad2ebfef6f664f8122cea3a4",
+      "address": "0x5ec67c79be85fbe18aef30bb59bbb62ef12c041280562819644b9ddddf97fe1",
       "class_hash": "0x659311ebd500fd5b861df50957d1669ba70d50d2c3dba5aed415f86ce08670",
       "abi": [
         {
@@ -3948,7 +3967,7 @@
     },
     {
       "members": [],
-      "class_hash": "0x2c2ace290cb1b3492a84600105866cb2c331dcc80f3b68651583659446b543e",
+      "class_hash": "0x7852d1ece28498df03809751b53d0dfd348464e7fdc99191f58e1f26725e9a1",
       "tag": "blockopoly-Player",
       "selector": "0x550665a3c41e8f6f594fc23c74393bea943d5a62b8b276707e1d87d0ee9c867"
     },

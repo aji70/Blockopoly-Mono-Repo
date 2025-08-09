@@ -37,6 +37,10 @@ export function useGameActions() {
     return client.game.getGamePlayerBalance(address, gameId);
   }, [client]);
 
+  const lastGame = useCallback(() => {
+    return client.game.lastGame();
+  }, [client]);
+
   return {
     createGame,
     joinGame,
@@ -46,5 +50,6 @@ export function useGameActions() {
     mint,
     getPlayer,
     getGamePlayerBalance,
+    lastGame,
   };
 }

@@ -37,7 +37,7 @@ const CHANCE_CARDS = [
   "Bank pays you dividend of $50",
   "Get out of Jail Free",
   "Go Back 3 Spaces",
-  "Go to Jail dirctly do not pass Go do not collect $200",
+  "Go to Jail directly do not pass Go do not collect $200",
   "Make general repairs - $25 house, $100 hotel",
   "Pay poor tax of $15",
   "Take a trip to Reading Railroad",
@@ -115,7 +115,7 @@ const GameBoard = () => {
       const gameData = await gameActions.getGame(gid);
       console.log('Game Data:', gameData);
 
-      // Check if game has started (optional, for robustness)
+      // Check if game has started
       const gameStarted = gameData.next_player && gameData.next_player !== '0';
       setHasGameStarted(gameStarted);
 
@@ -169,8 +169,8 @@ const GameBoard = () => {
         username: decodedPlayerUsername || 'Unknown',
         balance: Number(playerData.balance || 0),
         position: Number(playerData.position || 0),
-        jailed: !!playerData.jailed,
-        is_bankrupt: !!playerData.is_bankrupt,
+        jailed: !!player.jailed,
+        is_bankrupt: !!player.is_bankrupt,
         propertiesOwned: playerData.properties_owned || [],
       });
 
@@ -327,18 +327,35 @@ const GameBoard = () => {
       const cardList = type === 'Chance' ? CHANCE_CARDS : COMMUNITY_CHEST_CARDS;
       const randomCard = cardList[Math.floor(Math.random() * cardList.length)];
       setSelectedCard(randomCard);
-
-      await handleAction(
-        () =>
-          type === 'Chance'
-            ? movementActions.processChanceCard(account, gameId, byteArray.byteArrayFromString(randomCard))
-            : movementActions.processCommunityChestCard(account, gameId, byteArray.byteArrayFromString(randomCard)),
-        `process${type}Card`
-      );
     } catch (err: any) {
       console.error(`Draw ${type} Card Error:`, err);
       setError(err.message || `Error drawing ${type} card.`);
       setSelectedCard(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleProcessCard = async (type: 'Chance' | 'CommunityChest') => {
+    if (!account || !gameId || !currentProperty || !selectedCard || currentProperty.name !== type) {
+      setError(`No ${type} card to process.`);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      await handleAction(
+        () =>
+          type === 'Chance'
+            ? movementActions.processChanceCard(account, gameId, byteArray.byteArrayFromString(selectedCard))
+            : movementActions.processCommunityChestCard(account, gameId, byteArray.byteArrayFromString(selectedCard)),
+        `process${type}Card`
+      );
+      setSelectedCard(null); // Clear card after processing
+    } catch (err: any) {
+      console.error(`Process ${type} Card Error:`, err);
+      setError(err.message || `Error processing ${type} card.`);
     } finally {
       setIsLoading(false);
     }
@@ -427,7 +444,7 @@ const GameBoard = () => {
           <div className="grid grid-cols-11 grid-rows-11 w-full h-full gap-[2px]">
             <div className="col-start-2 col-span-9 row-start-2 row-span-9 bg-[#010F10] flex flex-col justify-center items-center p-4">
               <h1 className="text-3xl lg:text-5xl font-bold text-[#F0F7F7] font-orbitron text-center mb-4">
-                BLOCKOPOLY
+                CHAINOPOLY
               </h1>
               <div className="bg-gray-800 p-4 rounded-lg w-full max-w-sm">
                 <h2 className="text-base font-semibold text-cyan-300 mb-3">Game Actions</h2>
@@ -530,12 +547,21 @@ const GameBoard = () => {
                     {currentProperty.name === 'CommunityChest' ? 'Community Chest' : 'Chance'} Card
                   </h3>
                   <p className="text-sm text-gray-300">{selectedCard}</p>
-                  <button
-                    onClick={() => setSelectedCard(null)}
-                    className="mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700 transform hover:scale-105 transition-all duration-200"
-                  >
-                    Dismiss
-                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => handleProcessCard(currentProperty.name)}
+                      disabled={isLoading}
+                      className="px-2 py-1 bg-green-600 text-white text-xs rounded-full hover:bg-green-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50"
+                    >
+                      Process
+                    </button>
+                    <button
+                      onClick={() => setSelectedCard(null)}
+                      className="px-2 py-1 bg-red-600 text-white text-xs rounded-full hover:bg-red-700 transform hover:scale-105 transition-all duration-200"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -22,6 +22,9 @@ pub trait IGame<T> {
 
     fn get_game_player(self: @T, address: ContractAddress, game_id: u256) -> GamePlayer;
     fn get_game_player_balance(self: @T, address: ContractAddress, game_id: u256) -> u256;
+
+    fn last_game(self: @T) -> u256;
+
 }
 
 // dojo decorator
@@ -74,6 +77,12 @@ pub mod game {
             let game: Game = world.read_model(game_id);
             game
         }
+
+        fn last_game(self: @ContractState) -> u256 {
+            let mut world = self.world_default();
+            let  game_counter: GameCounter = world.read_model('v0');
+            game_counter.current_val 
+        }
         fn create_game(
             ref self: ContractState, game_type: u8, player_symbol: u8, number_of_players: u8,
         ) -> u256 {
@@ -103,6 +112,10 @@ pub mod game {
 
             let game_id = self
                 .create_new_game(game_type_enum, player_symbol_enum, number_of_players);
+
+             let mut player: Player = world.read_model(get_caller_address());
+             player.last_game = game_id;
+             world.write_model(@player);
             game_id
         }
 
@@ -126,6 +139,10 @@ pub mod game {
             };
 
             self.join(player_symbol_enum, game_id);
+
+            let mut player: Player = world.read_model(get_caller_address());
+             player.last_game = game_id;
+             world.write_model(@player);
         }
 
         fn start_game(ref self: ContractState, game_id: u256) -> bool {
@@ -386,6 +403,7 @@ pub mod game {
             // Recount players and update the joined count
             game.players_joined = self.count_joined_players(game.id);
             game.game_players.append(get_caller_address());
+            game.players_joined += 1;
 
                  let mut player: GamePlayer = world.read_model((caller_address, game_id));
              assert(!player.joined, 'player already joined');
