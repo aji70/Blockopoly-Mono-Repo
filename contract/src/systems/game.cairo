@@ -121,6 +121,7 @@ pub mod game {
 
              let mut player: Player = world.read_model(get_caller_address());
              player.last_game = game_id;
+             
              self.mint(get_caller_address(), game_id, 1500);
              world.write_model(@player);
             game_id

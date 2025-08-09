@@ -4,16 +4,14 @@ import { BoardSquare } from '@/types/game';
 
 interface PropertyCardProps {
   square: BoardSquare;
-  owner: string | null; // Address of the owner
-  ownerUsername: string | null; // Username of the owner
-  playerToken: string | null; // Token emoji (e.g., '🎩')
-  isConnectedPlayer: boolean; // Whether the connected wallet owns the property
+  owner: string | null;
+  ownerUsername: string | null;
+  isConnectedPlayer: boolean;
 }
 
-const PropertyCard = ({ square, owner, ownerUsername, playerToken, isConnectedPlayer }: PropertyCardProps) => {
+const PropertyCard = ({ square, owner, ownerUsername, isConnectedPlayer }: PropertyCardProps) => {
   const { name, price, color, position, icon } = square;
 
-  // Define classes for different orientations
   const orientationClasses = {
     bottom: 'border-t-8',
     left: 'border-t-8 rotate-90',
@@ -68,7 +66,7 @@ const PropertyCard = ({ square, owner, ownerUsername, playerToken, isConnectedPl
             ownerOrientationClasses[position]
           }`}
         >
-          {ownerUsername || 'Unknown'} {isConnectedPlayer ? '(You)' : ''} {playerToken || ''}
+          {ownerUsername || 'Unknown'} {isConnectedPlayer ? '(You)' : ''}
         </p>
       )}
     </div>

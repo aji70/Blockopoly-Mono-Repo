@@ -48,7 +48,7 @@ pub mod movement {
     impl MovementImpl of super::IMovement<ContractState> {
 
 
-     fn move_player(ref self: ContractState, game_id: u256, steps: u8) -> u8 {
+    fn move_player(ref self: ContractState, game_id: u256, steps: u8) -> u8 {
     let mut world = self.world_default();
     let caller = get_caller_address();
     let mut game_player: GamePlayer = world.read_model((caller, game_id));
