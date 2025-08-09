@@ -118,6 +118,27 @@ export function setupWorld(provider: DojoProvider) {
 		}
 	};
 
+	const build_game_leaveGame_calldata = (gameId: BigNumberish): DojoCall => {
+		return {
+			contractName: "game",
+			entrypoint: "leave_game",
+			calldata: [gameId],
+		};
+	};
+
+	const game_leaveGame = async (snAccount: Account | AccountInterface, gameId: BigNumberish) => {
+		try {
+			return await provider.execute(
+				snAccount,
+				build_game_leaveGame_calldata(gameId),
+				"blockopoly",
+			);
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
 	const build_game_mint_calldata = (recepient: string, gameId: BigNumberish, amount: BigNumberish): DojoCall => {
 		return {
 			contractName: "game",
@@ -732,6 +753,8 @@ export function setupWorld(provider: DojoProvider) {
 			buildJoinGameCalldata: build_game_joinGame_calldata,
 			lastGame: game_lastGame,
 			buildLastGameCalldata: build_game_lastGame_calldata,
+			leaveGame: game_leaveGame,
+			buildLeaveGameCalldata: build_game_leaveGame_calldata,
 			mint: game_mint,
 			buildMintCalldata: build_game_mint_calldata,
 			retrieveGame: game_retrieveGame,

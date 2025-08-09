@@ -21,6 +21,10 @@ export function useGameActions() {
     return client.game.endGame(account, gameId);
   }, [client]);
 
+    const leaveGame = useCallback((account: Account | AccountInterface, gameId: BigNumberish) => {
+    return client.game.leaveGame(account, gameId);
+  }, [client]);
+
   const getGame = useCallback((gameId: BigNumberish) => {
     return client.game.retrieveGame(gameId);
   }, [client]);
@@ -50,6 +54,7 @@ export function useGameActions() {
     mint,
     getPlayer,
     getGamePlayerBalance,
+    leaveGame,
     lastGame,
   };
 }

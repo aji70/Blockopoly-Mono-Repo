@@ -1,9 +1,34 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useGameActions } from '@/hooks/useGameActions';
 import { useAccount } from '@starknet-react/core';
+import { useGameActions } from '@/hooks/useGameActions';
+
+interface Game {
+  status: { variant: { Pending?: {}; Ongoing?: {} } };
+  players_joined: string;
+  number_of_players: string;
+  creator: `0x${string}` | undefined;
+  is_initialised: boolean;
+  hat: string;
+  car: string;
+  dog: string;
+  thimble: string;
+  iron: string;
+  battleship: string;
+  boot: string;
+  wheelbarrow: string;
+  game_players: string[];
+  player_hat: string;
+  player_car: string;
+  player_dog: string;
+  player_thimble: string;
+  player_iron: string;
+  player_battleship: string;
+  player_boot: string;
+  player_wheelbarrow: string;
+}
 
 const GameWaiting = () => {
   const router = useRouter();
@@ -16,49 +41,78 @@ const GameWaiting = () => {
   const [playersJoined, setPlayersJoined] = useState<number | null>(null);
   const [maxPlayers, setMaxPlayers] = useState<number | null>(null);
   const [isInitialised, setIsInitialised] = useState<boolean | null>(null);
+  const [isPending, setIsPending] = useState<boolean | null>(null);
+  const [isPlayerInGame, setIsPlayerInGame] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isCreator =
-    address && creator && address.toLowerCase() === creator.toLowerCase();
   const numericGameId = gameId ? Number(gameId) : NaN;
+  const isGameReady = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers && isInitialised;
+  const isCreator = address === creator;
+  const showStartGame = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers;
+  const showGoToBoard = isGameReady && !!isPending && !!isPlayerInGame;
+
+  const fetchGameData = useCallback(async () => {
+    if (!gameId || isNaN(numericGameId)) return;
+
+    try {
+      const gameData = (await gameActions.getGame(numericGameId)) as Game;
+      if (!gameData) {
+        console.warn('No game data returned, keeping last state.');
+        return;
+      }
+
+      const joined = Number(gameData.players_joined);
+      const max = Number(gameData.number_of_players);
+      const initialised = Boolean(gameData.is_initialised);
+      const pending = !!gameData.status?.variant?.Pending;
+
+      const tokenFields = [
+        gameData.hat,
+        gameData.car,
+        gameData.dog,
+        gameData.thimble,
+        gameData.iron,
+        gameData.battleship,
+        gameData.boot,
+        gameData.wheelbarrow,
+      ];
+      const playerInGame = address ? gameData.game_players.includes(address) : false;
+
+      // Debugging logs
+      console.log('[GameWaiting] fetchGameData:', {
+        gameId,
+        numericGameId,
+        address,
+        tokenFields,
+        gamePlayers: gameData.game_players,
+        playerInGame,
+        playersJoined: joined,
+        maxPlayers: max,
+        isInitialised: initialised,
+        isPending: pending,
+        isGameReady,
+        rawGameData: gameData,
+      });
+
+      setPlayersJoined(!isNaN(joined) ? joined : playersJoined);
+      setMaxPlayers(!isNaN(max) ? max : maxPlayers);
+      setIsInitialised(initialised);
+      setIsPending(pending);
+      setIsPlayerInGame(playerInGame);
+      setLastUpdated(Date.now());
+      setError(null);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching game data:', err.message);
+      setError('Failed to load game data. Retrying...');
+    }
+  }, [gameId, numericGameId, gameActions, address, playersJoined, maxPlayers, router]);
 
   useEffect(() => {
     let isMounted = true;
     let intervalId: NodeJS.Timeout | null = null;
-
-    const fetchGameData = async () => {
-      if (!gameId || isNaN(numericGameId)) return;
-
-      try {
-        const gameData = await gameActions.getGame(numericGameId);
-        if (!isMounted || !gameData) {
-          console.warn('No game data returned, keeping last state.');
-          return;
-        }
-
-        const joined = Number(gameData.players_joined);
-        const max = Number(gameData.number_of_players);
-        const initialised = Boolean(gameData.is_initialised);
-
-        setPlayersJoined(!isNaN(joined) ? joined : playersJoined);
-        setMaxPlayers(!isNaN(max) ? max : maxPlayers);
-        setIsInitialised(initialised);
-        setLastUpdated(Date.now());
-        setError(null);
-        setLoading(false);
-
-        if (initialised && joined >= 0 && max > 0 && joined === max) {
-          router.push(`/game?gameId=${numericGameId}`);
-        }
-      } catch (err: any) {
-        console.error('Error fetching game data:', err.message);
-        if (isMounted) {
-          setError('Failed to load game data. Retrying...');
-        }
-      }
-    };
 
     fetchGameData();
     intervalId = setInterval(fetchGameData, 5000);
@@ -67,29 +121,29 @@ const GameWaiting = () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [gameId, numericGameId, gameActions, router, playersJoined, maxPlayers]);
+  }, [fetchGameData]);
 
-  const handleStartGame = async () => {
-    if (!account || !gameId) {
+  const handleStartGame = () => {
+    if (!account || !address || !gameId) {
       setError('Please connect your wallet');
       return;
     }
-    if (!isCreator) {
-      setError('Only the game creator can start the game');
+    if (playersJoined === null || maxPlayers === null || playersJoined !== maxPlayers) {
+      setError('Cannot start game until all players have joined');
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    try {
-      await gameActions.startGame(account, numericGameId);
-      router.push(`/game?gameId=${numericGameId}`);
-    } catch (err: any) {
-      console.error('Error starting game:', err.message);
-      setError(err?.message || 'Failed to start game. Please try again.');
-    } finally {
-      setLoading(false);
+    console.log('[GameWaiting] Redirecting to /game-play');
+    router.push(`/game-play?gameId=${numericGameId}`);
+  };
+
+  const handleGoToBoard = () => {
+    if (!gameId || !isGameReady || !isPlayerInGame) {
+      setError('Cannot proceed to game board');
+      return;
     }
+    console.log('[GameWaiting] Navigating to game board:', numericGameId);
+    router.push(`/game-play?gameId=${numericGameId}`);
   };
 
   const timeAgo = () => {
@@ -113,7 +167,7 @@ const GameWaiting = () => {
       <main className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-[#010F10]/90 to-[#010F10]/50 px-4 sm:px-6">
         <div className="w-full max-w-md bg-[#0A1A1B]/80 p-6 sm:p-8 rounded-xl shadow-lg border border-[#00F0FF]/30 backdrop-blur-sm">
           <h2 className="text-2xl sm:text-3xl font-bold font-orbitron mb-6 text-[#F0F7F7] text-center tracking-wide">
-            CHAINOPOLY Waiting Room
+            Blockopoly Waiting Room
             <span className="block text-sm text-[#00F0FF] mt-1">
               Game ID: {gameId}
             </span>
@@ -129,7 +183,7 @@ const GameWaiting = () => {
           ) : (
             <div className="text-center space-y-3">
               <p className="text-[#869298] text-sm">
-                Waiting for players to join...
+                {playersJoined === maxPlayers ? 'All players joined!' : 'Waiting for players to join...'}
               </p>
               <p className="text-[#00F0FF] text-lg font-semibold">
                 Players: {playersJoined ?? '—'}/{maxPlayers ?? '—'}
@@ -138,18 +192,31 @@ const GameWaiting = () => {
                 Initialised: {isInitialised ? '✅ Yes' : '⏳ No'}
               </p>
               <p className="text-gray-400 text-xs">
+                Player in game: {isPlayerInGame ? '✅ Yes' : '❌ No'}
+              </p>
+              <p className="text-gray-400 text-xs">
                 Last updated: {timeAgo()}
               </p>
             </div>
           )}
 
-          {isCreator && (
+          {showStartGame && (
             <button
               onClick={handleStartGame}
               className="w-full mt-6 bg-[#00F0FF] text-black text-sm font-orbitron font-semibold py-3 rounded-lg hover:bg-[#00D4E6] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+              disabled={playersJoined !== maxPlayers}
+            >
+              Start Game
+            </button>
+          )}
+
+          {showGoToBoard && (
+            <button
+              onClick={handleGoToBoard}
+              className="w-full mt-6 bg-[#FFD700] text-black text-sm font-orbitron font-semibold py-3 rounded-lg hover:bg-[#FFCA28] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               disabled={loading}
             >
-              {loading ? 'Starting...' : 'Start Game'}
+              Go to Board
             </button>
           )}
 

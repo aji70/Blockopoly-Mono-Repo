@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x77a747fb791d28bcba8b677988aed4e747205115704ce07b0a9d34a4d465862",
-    "seed": "bajoinberttoios",
+    "address": "0xfd90627545ad2b510f5a76f973c4f7b114cf6caba731da62eb2f5aad5eb21f",
+    "seed": "argentine",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,8 +1328,8 @@
   },
   "contracts": [
     {
-      "address": "0x620f42d2dddaa7231c6e865f27b3fba008c17d24f11fb9712475dac515a5d2f",
-      "class_hash": "0x4c54c8d1c4a1a4798ba333fd6fdf741aceb314d1890b0cab80965ab21a7c323",
+      "address": "0x66a30bf3914df93301d4ded3d13cd2058084d3702e81ac3e483b408c873f93f",
+      "class_hash": "0x1cdc5bf5631a5f8a1db3d83d91d5ae914a820b71b52ad7237332c88e4a8fe14",
       "abi": [
         {
           "type": "impl",
@@ -1834,6 +1834,18 @@
             },
             {
               "type": "function",
+              "name": "leave_game",
+              "inputs": [
+                {
+                  "name": "game_id",
+                  "type": "core::integer::u256"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
               "name": "retrieve_game",
               "inputs": [
                 {
@@ -2044,12 +2056,13 @@
         "join_game",
         "start_game",
         "end_game",
+        "leave_game",
         "mint",
         "upgrade"
       ]
     },
     {
-      "address": "0x7ac589cc1550bb6158c48304c3d02e73c55df98aed5170a66471c91f88aac6b",
+      "address": "0x314a59f806d2c713e576af5dbe618bcf654852ae2a02a804f2108a533db37c4",
       "class_hash": "0x2f505d476a9b40b16f7a83dfe3994646514331d552beb92019d4440d59b8c8b",
       "abi": [
         {
@@ -2431,7 +2444,7 @@
       ]
     },
     {
-      "address": "0xdddd4ec964d2ff5a3929abeb7dd130463f87a7f3463ea65366da2883f79bef",
+      "address": "0x220dcddab9b3777bb3557f8d79059d3064477697ca596ec826e33350f52d86a",
       "class_hash": "0x5c293b9519284310a34dc395289b68bf291e466fdb6c8b1a5e76d81ada41caa",
       "abi": [
         {
@@ -2757,7 +2770,7 @@
       ]
     },
     {
-      "address": "0x6627b3e0c69ec0e6b21e181adea6b10b419ec44f017680faacb466f5048bd5b",
+      "address": "0x5e789996c11a992b23a03ccd005edd0e03971802c6e93cae4857f430990fa9c",
       "class_hash": "0x44faa50f8b0de73a17971b37891610fe7b52ddccdc206019fb4a539dafcd843",
       "abi": [
         {
@@ -3437,7 +3450,7 @@
       ]
     },
     {
-      "address": "0x5ec67c79be85fbe18aef30bb59bbb62ef12c041280562819644b9ddddf97fe1",
+      "address": "0x2edc692070d7496f91789e39a317b58c8a43f2ddf67b5a5bf0819bf71808972",
       "class_hash": "0x659311ebd500fd5b861df50957d1669ba70d50d2c3dba5aed415f86ce08670",
       "abi": [
         {

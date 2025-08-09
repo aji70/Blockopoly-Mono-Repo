@@ -1,13 +1,17 @@
+// settings/game-room-loading.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-const GameRoomLoading = () => {
+interface GameRoomLoadingProps {
+  action: 'join' | 'create' | null; // Required prop for action
+  customMessage?: string; // Optional prop for custom message
+}
+
+const GameRoomLoading: React.FC<GameRoomLoadingProps> = ({ action, customMessage }) => {
   const [dots, setDots] = useState('');
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const action = searchParams.get('action') as 'join' | 'create' | null;
 
   useEffect(() => {
     const dotInterval = setInterval(() => {
@@ -26,11 +30,11 @@ const GameRoomLoading = () => {
       <main className="w-full h-[calc(100dvh-87px)] flex flex-col items-center justify-center bg-gradient-to-b from-[#010F10]/90 to-[#010F10]/50 px-4 sm:px-6">
         <div className="w-full max-w-md bg-[#0A1A1B]/80 p-6 sm:p-8 rounded-xl shadow-lg border border-[#00F0FF]/30 backdrop-blur-sm">
           <h2 className="text-2xl sm:text-3xl font-bold font-orbitron mb-6 text-[#F0F7F7] text-center tracking-wide">
-            Loading Game
+            Loading Blockopoly
           </h2>
           <div className="text-center space-y-3">
             <p className="text-[#869298] text-sm font-orbitron">
-              {action === 'join' ? 'Joining the game...' : action === 'create' ? 'Creating the game...' : 'Processing...'}
+              {customMessage || (action === 'join' ? 'Joining the game...' : action === 'create' ? 'Creating the game... (this may take up to 30 seconds)' : 'Processing...')}
             </p>
             <p className="text-[#00F0FF] text-sm font-semibold font-orbitron uppercase">
               Show no mercy!
