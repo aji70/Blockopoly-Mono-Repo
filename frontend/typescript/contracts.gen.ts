@@ -80,6 +80,27 @@ export function setupWorld(provider: DojoProvider) {
 		}
 	};
 
+	const build_game_getPlayerNetworth_calldata = (address: string, gameId: BigNumberish): DojoCall => {
+		return {
+			contractName: "game",
+			entrypoint: "get_player_networth",
+			calldata: [address, gameId],
+		};
+	};
+
+	const game_getPlayerNetworth = async (snAccount: Account | AccountInterface, address: string, gameId: BigNumberish) => {
+		try {
+			return await provider.execute(
+				snAccount,
+				build_game_getPlayerNetworth_calldata(address, gameId),
+				"blockopoly",
+			);
+		} catch (error) {
+			console.error(error);
+			throw error;
+		}
+	};
+
 	const build_game_joinGame_calldata = (playerSymbol: BigNumberish, gameId: BigNumberish): DojoCall => {
 		return {
 			contractName: "game",
@@ -749,6 +770,8 @@ export function setupWorld(provider: DojoProvider) {
 			buildGetGamePlayerCalldata: build_game_getGamePlayer_calldata,
 			getGamePlayerBalance: game_getGamePlayerBalance,
 			buildGetGamePlayerBalanceCalldata: build_game_getGamePlayerBalance_calldata,
+			getPlayerNetworth: game_getPlayerNetworth,
+			buildGetPlayerNetworthCalldata: build_game_getPlayerNetworth_calldata,
 			joinGame: game_joinGame,
 			buildJoinGameCalldata: build_game_joinGame_calldata,
 			lastGame: game_lastGame,

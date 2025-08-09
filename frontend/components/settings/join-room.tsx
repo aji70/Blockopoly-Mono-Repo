@@ -1,4 +1,3 @@
-// app/join-room/page.tsx
 'use client';
 
 import { House } from 'lucide-react';
@@ -42,17 +41,25 @@ interface Game {
   battleship: string;
   boot: string;
   wheelbarrow: string;
+  player_hat: bigint;
+  player_car: bigint;
+  player_dog: bigint;
+  player_thimble: bigint;
+  player_iron: bigint;
+  player_battleship: bigint;
+  player_boot: bigint;
+  player_wheelbarrow: bigint;
 }
 
 const tokens: Token[] = [
-  { name: 'Top Hat', emoji: '🎩', value: 1 },
-  { name: 'Car', emoji: '🚗', value: 2 },
-  { name: 'Dog', emoji: '🐕', value: 3 },
-  { name: 'Battleship', emoji: '🚢', value: 4 },
-  { name: 'Wheelbarrow', emoji: '🛒', value: 5 },
-  { name: 'Shoe', emoji: '👞', value: 6 },
-  { name: 'Thimble', emoji: '🧵', value: 7 },
-  { name: 'Iron', emoji: '🧼', value: 8 },
+  { name: 'Hat', emoji: '🎩', value: 0 },
+  { name: 'Car', emoji: '🚗', value: 1 },
+  { name: 'Dog', emoji: '🐕', value: 2 },
+  { name: 'Thimble', emoji: '🧵', value: 3 },
+  { name: 'Iron', emoji: '🧼', value: 4 },
+  { name: 'Battleship', emoji: '🚢', value: 5 },
+  { name: 'Boot', emoji: '👞', value: 6 },
+  { name: 'Wheelbarrow', emoji: '🛒', value: 7 },
 ];
 
 const JoinRoom = () => {
@@ -160,22 +167,43 @@ const JoinRoom = () => {
     try {
       const gameData = await game.getGame(gameId) as Game;
       console.log('[fetchAvailableTokens] Raw gameData:', gameData);
-      
-      // Safely access token fields with fallback to '0'
-      const usedTokens = [
-        gameData.hat ?? '0',
-        gameData.car ?? '0',
-        gameData.dog ?? '0',
-        gameData.thimble ?? '0',
-        gameData.iron ?? '0',
-        gameData.battleship ?? '0',
-        gameData.boot ?? '0',
-        gameData.wheelbarrow ?? '0',
-      ].filter((v) => v !== '0' && v !== null && v !== undefined).map((v) => Number(v));
-      
-      const available = tokens.filter((t) => !usedTokens.includes(t.value));
+
+      const symbolFields = [
+        { field: 'player_hat', label: 'Hat', value: 0 },
+        { field: 'player_car', label: 'Car', value: 1 },
+        { field: 'player_dog', label: 'Dog', value: 2 },
+        { field: 'player_thimble', label: 'Thimble', value: 3 },
+        { field: 'player_iron', label: 'Iron', value: 4 },
+        { field: 'player_battleship', label: 'Battleship', value: 5 },
+        { field: 'player_boot', label: 'Boot', value: 6 },
+        { field: 'player_wheelbarrow', label: 'Wheelbarrow', value: 7 },
+      ];
+
+      // Log player_* field values for debugging
+      console.log('[fetchAvailableTokens] Player Fields:', {
+        player_hat: gameData.player_hat,
+        player_car: gameData.player_car,
+        player_dog: gameData.player_dog,
+        player_thimble: gameData.player_thimble,
+        player_iron: gameData.player_iron,
+        player_battleship: gameData.player_battleship,
+        player_boot: gameData.player_boot,
+        player_wheelbarrow: gameData.player_wheelbarrow,
+      });
+
+      const availableTokenValues = symbolFields
+        .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
+        .map(({ value }) => value);
+
+      const available = tokens.filter((t) => availableTokenValues.includes(t.value));
       setAvailableTokens(available);
       console.log(`[fetchAvailableTokens] Available tokens for game ${gameId}:`, available);
+
+      // Set default joinToken to the first available token
+      if (available.length > 0 && !available.some((token) => token.name === joinToken)) {
+        setJoinToken(available[0].name);
+      }
+
       return available;
     } catch (err: any) {
       console.error('[fetchAvailableTokens] Error:', err.message);
@@ -196,16 +224,16 @@ const JoinRoom = () => {
       return;
     }
     if (!gameType || !selectedToken || !numberOfPlayers) {
-      setError('Please fill in all fields');
+      setError('Please select all fields');
       console.log('[handleCreateGame] Missing fields:', { gameType, selectedToken, numberOfPlayers });
       return;
     }
 
     const gameTypeNum = Number(gameType);
     const numPlayers = Number(numberOfPlayers);
-    if (isNaN(gameTypeNum) || gameTypeNum < 0) {
-      setError('Game type must be a non-negative number');
-      console.log('[handleCreateGame] Invalid game type:', gameTypeNum);
+    if (gameType !== '0' && gameType !== '1') {
+      setError('Game type must be Public (0) or Private (1)');
+      console.log('[handleCreateGame] Invalid game type:', gameType);
       return;
     }
     if (isNaN(numPlayers) || numPlayers < 2 || numPlayers > 8) {
@@ -215,7 +243,7 @@ const JoinRoom = () => {
     }
 
     const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
-    if (!tokenValue) {
+    if (tokenValue === undefined) {
       setError('Invalid token selected');
       console.log('[handleCreateGame] Invalid token:', selectedToken);
       return;
@@ -605,7 +633,7 @@ const JoinRoom = () => {
                 value={joinToken}
                 onChange={(e) => setJoinToken(e.target.value)}
                 className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                disabled={loading}
+                disabled={loading || availableTokens.length === 0}
               >
                 <option value="" disabled>Select a token</option>
                 {availableTokens.map((token) => (
@@ -710,29 +738,31 @@ const JoinRoom = () => {
         </div>
 
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
+            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
               <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
                 Create New Game
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1">Game Type</label>
-                  <input
-                    type="number"
-                    min={0}
+                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Game Type</label>
+                  <select
                     value={gameType}
                     onChange={(e) => setGameType(e.target.value)}
-                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
                     disabled={loading}
-                  />
+                  >
+                    <option value="" disabled>Select game type</option>
+                    <option value="0">Public</option>
+                    <option value="1">Private</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Select Token</label>
+                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
                   <select
                     value={selectedToken}
                     onChange={(e) => setSelectedToken(e.target.value)}
-                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
                     disabled={loading}
                   >
                     <option value="" disabled>Select a token</option>
@@ -744,16 +774,20 @@ const JoinRoom = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Number of Players</label>
-                  <input
-                    type="number"
-                    min={2}
-                    max={8}
+                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Number of Players</label>
+                  <select
                     value={numberOfPlayers}
                     onChange={(e) => setNumberOfPlayers(e.target.value)}
-                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
+                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
                     disabled={loading}
-                  />
+                  >
+                    <option value="" disabled>Select number of players</option>
+                    {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                      <option key={num} value={num}>
+                        {num}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <button
                   onClick={handleCreateGame}
@@ -775,28 +809,28 @@ const JoinRoom = () => {
         )}
 
         {showJoinModal !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
+            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
               <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
                 Join Ongoing Game
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm mb-1">Game ID</label>
+                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Game ID</label>
                   <input
                     type="number"
                     value={showJoinModal}
                     disabled
-                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded text-[#73838B]"
+                    className="w-full px-3 py-2 bg-transparent border border-[#0E282A] rounded text-[#73838B]"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Select Token</label>
+                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
                   <select
                     value={joinToken}
                     onChange={(e) => setJoinToken(e.target.value)}
-                    className="w-full px-3 py-2 bg-transparent border border-[#003B3E] rounded"
-                    disabled={loading}
+                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                    disabled={loading || availableTokens.length === 0}
                   >
                     <option value="" disabled>Select a token</option>
                     {availableTokens.map((token) => (

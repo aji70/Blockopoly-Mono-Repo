@@ -20,14 +20,22 @@ interface Game {
   boot: string;
   wheelbarrow: string;
   game_players: string[];
-  player_hat: string;
-  player_car: string;
-  player_dog: string;
-  player_thimble: string;
-  player_iron: string;
-  player_battleship: string;
-  player_boot: string;
-  player_wheelbarrow: string;
+  player_hat: bigint;
+  player_car: bigint;
+  player_dog: bigint;
+  player_thimble: bigint;
+  player_iron: bigint;
+  player_battleship: bigint;
+  player_boot: bigint;
+  player_wheelbarrow: bigint;
+}
+
+interface Player {
+  address: string;
+  game_id: string;
+  username: string;
+  player_symbol: { variant: { [key: string]: {} } };
+  joined: boolean;
 }
 
 const GameWaiting = () => {
@@ -43,18 +51,32 @@ const GameWaiting = () => {
   const [isInitialised, setIsInitialised] = useState<boolean | null>(null);
   const [isPending, setIsPending] = useState<boolean | null>(null);
   const [isPlayerInGame, setIsPlayerInGame] = useState<boolean>(false);
+  const [playerData, setPlayerData] = useState<Player | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playerSymbol, setPlayerSymbol] = useState<string>('0'); // Default to 0 (e.g., Hat)
+  const [playerSymbolFields, setPlayerSymbolFields] = useState<string[]>([]); // Array for symbol names with value 0
+  const [availableSymbols, setAvailableSymbols] = useState<{ value: string; label: string }[]>([
+    { value: '0', label: 'Hat' },
+    { value: '1', label: 'Car' },
+    { value: '2', label: 'Dog' },
+    { value: '3', label: 'Thimble' },
+    { value: '4', label: 'Iron' },
+    { value: '5', label: 'Battleship' },
+    { value: '6', label: 'Boot' },
+    { value: '7', label: 'Wheelbarrow' },
+  ]);
 
   const numericGameId = gameId ? Number(gameId) : NaN;
   const isGameReady = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers && isInitialised;
   const isCreator = address === creator;
   const showStartGame = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers;
   const showGoToBoard = isGameReady && !!isPending && !!isPlayerInGame;
+  const showJoinGame = !!account && !!address && !!gameId && !isNaN(numericGameId) && playerData?.joined === false;
 
   const fetchGameData = useCallback(async () => {
-    if (!gameId || isNaN(numericGameId)) return;
+    if (!gameId || isNaN(numericGameId) || !address) return;
 
     try {
       const gameData = (await gameActions.getGame(numericGameId)) as Game;
@@ -67,40 +89,53 @@ const GameWaiting = () => {
       const max = Number(gameData.number_of_players);
       const initialised = Boolean(gameData.is_initialised);
       const pending = !!gameData.status?.variant?.Pending;
+      const playerInGame = gameData.game_players.includes(address);
 
-      const tokenFields = [
-        gameData.hat,
-        gameData.car,
-        gameData.dog,
-        gameData.thimble,
-        gameData.iron,
-        gameData.battleship,
-        gameData.boot,
-        gameData.wheelbarrow,
+      // Map player_* fields to symbol names, filter for value BigInt(0)
+      const symbolFields = [
+        { field: 'player_hat', label: 'Hat', value: '0' },
+        { field: 'player_car', label: 'Car', value: '1' },
+        { field: 'player_dog', label: 'Dog', value: '2' },
+        { field: 'player_thimble', label: 'Thimble', value: '3' },
+        { field: 'player_iron', label: 'Iron', value: '4' },
+        { field: 'player_battleship', label: 'Battleship', value: '5' },
+        { field: 'player_boot', label: 'Boot', value: '6' },
+        { field: 'player_wheelbarrow', label: 'Wheelbarrow', value: '7' },
       ];
-      const playerInGame = address ? gameData.game_players.includes(address) : false;
-
-      // Debugging logs
-      console.log('[GameWaiting] fetchGameData:', {
-        gameId,
-        numericGameId,
-        address,
-        tokenFields,
-        gamePlayers: gameData.game_players,
-        playerInGame,
-        playersJoined: joined,
-        maxPlayers: max,
-        isInitialised: initialised,
-        isPending: pending,
-        isGameReady,
-        rawGameData: gameData,
+      // Log player_* field values for debugging
+      console.log('[GameWaiting] Player Fields:', {
+        player_hat: gameData.player_hat,
+        player_car: gameData.player_car,
+        player_dog: gameData.player_dog,
+        player_thimble: gameData.player_thimble,
+        player_iron: gameData.player_iron,
+        player_battleship: gameData.player_battleship,
+        player_boot: gameData.player_boot,
+        player_wheelbarrow: gameData.player_wheelbarrow,
       });
+      const symbolNames = symbolFields
+        .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
+        .map(({ label }) => label);
+      const filteredSymbols = symbolFields
+        .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
+        .map(({ value, label }) => ({ value, label }));
+
+      // Fetch player data
+      const playerDataResult = (await gameActions.getPlayer(address, numericGameId)) as Player;
+      console.log('[GameWaiting] Player Data:', playerDataResult);
 
       setPlayersJoined(!isNaN(joined) ? joined : playersJoined);
       setMaxPlayers(!isNaN(max) ? max : maxPlayers);
       setIsInitialised(initialised);
       setIsPending(pending);
       setIsPlayerInGame(playerInGame);
+      setPlayerData(playerDataResult);
+      setPlayerSymbolFields(symbolNames);
+      setAvailableSymbols(filteredSymbols);
+      // Set default playerSymbol to first available symbol
+      if (filteredSymbols.length > 0 && !filteredSymbols.some((symbol) => symbol.value === playerSymbol)) {
+        setPlayerSymbol(filteredSymbols[0].value);
+      }
       setLastUpdated(Date.now());
       setError(null);
       setLoading(false);
@@ -108,7 +143,7 @@ const GameWaiting = () => {
       console.error('Error fetching game data:', err.message);
       setError('Failed to load game data. Retrying...');
     }
-  }, [gameId, numericGameId, gameActions, address, playersJoined, maxPlayers, router]);
+  }, [gameId, numericGameId, gameActions, address, playersJoined, maxPlayers, playerSymbol]);
 
   useEffect(() => {
     let isMounted = true;
@@ -122,6 +157,31 @@ const GameWaiting = () => {
       if (intervalId) clearInterval(intervalId);
     };
   }, [fetchGameData]);
+
+  const handleJoinGame = async () => {
+    if (!account || !address || !gameId || isNaN(numericGameId)) {
+      setError('Please connect your wallet and provide a valid game ID');
+      return;
+    }
+    if (!playerSymbol || !availableSymbols.some((symbol) => symbol.value === playerSymbol)) {
+      setError('Please select a valid player symbol');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await gameActions.joinGame(account, Number(playerSymbol), numericGameId);
+      console.log('[GameWaiting] Join Game called:', { gameId, playerSymbol });
+      // No redirect; rely on polling to update joined status
+      await fetchGameData(); // Immediate fetch to reflect updated status
+    } catch (err: any) {
+      console.error('Error joining game:', err.message);
+      setError('Failed to join game. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStartGame = () => {
     if (!account || !address || !gameId) {
@@ -192,11 +252,45 @@ const GameWaiting = () => {
                 Initialised: {isInitialised ? '✅ Yes' : '⏳ No'}
               </p>
               <p className="text-gray-400 text-xs">
-                Player in game: {isPlayerInGame ? '✅ Yes' : '❌ No'}
+                Joined Status: {playerData?.joined ? '✅ Joined' : '❌ Not Joined'}
               </p>
               <p className="text-gray-400 text-xs">
                 Last updated: {timeAgo()}
               </p>
+            </div>
+          )}
+
+          {showJoinGame && (
+            <div className="mt-6 space-y-4">
+              {availableSymbols.length > 0 ? (
+                <>
+                  <div className="flex flex-col">
+                    <label className="text-sm text-gray-300 mb-1 font-orbitron">Player Symbol</label>
+                    <select
+                      value={playerSymbol}
+                      onChange={(e) => setPlayerSymbol(e.target.value)}
+                      className="bg-[#0A1A1B] text-[#F0F7F7] p-2 rounded border border-[#00F0FF]/30 focus:outline-none focus:ring-2 focus:ring-[#00F0FF] font-orbitron"
+                    >
+                      {availableSymbols.map((symbol) => (
+                        <option key={symbol.value} value={symbol.value}>
+                          {symbol.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleJoinGame}
+                    className="w-full bg-[#00F0FF] text-black text-sm font-orbitron font-semibold py-3 rounded-lg hover:bg-[#00D4E6] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                    disabled={loading}
+                  >
+                    Join Game
+                  </button>
+                </>
+              ) : (
+                <p className="text-red-500 text-xs text-center animate-pulse">
+                  No available symbols. Please wait or try another game.
+                </p>
+              )}
             </div>
           )}
 

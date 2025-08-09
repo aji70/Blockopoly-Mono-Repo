@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0xfd90627545ad2b510f5a76f973c4f7b114cf6caba731da62eb2f5aad5eb21f",
-    "seed": "argentine",
+    "address": "0x617866fe821901b62cf1c30011b8dce0201b8adebab5314e6e507d8e5ebea82",
+    "seed": "ndifrekesbnr",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,8 +1328,8 @@
   },
   "contracts": [
     {
-      "address": "0x66a30bf3914df93301d4ded3d13cd2058084d3702e81ac3e483b408c873f93f",
-      "class_hash": "0x1cdc5bf5631a5f8a1db3d83d91d5ae914a820b71b52ad7237332c88e4a8fe14",
+      "address": "0x5076e1bdf846ef70319c37973b110b41501e99d7792a48e6543880f2e21a20f",
+      "class_hash": "0x1daffe87f4ad918f5f8d87c3d3167a4abc3fe508d19cc6dcdc58f09a12d7b48",
       "abi": [
         {
           "type": "impl",
@@ -1930,6 +1930,26 @@
                 }
               ],
               "state_mutability": "view"
+            },
+            {
+              "type": "function",
+              "name": "get_player_networth",
+              "inputs": [
+                {
+                  "name": "address",
+                  "type": "core::starknet::contract_address::ContractAddress"
+                },
+                {
+                  "name": "game_id",
+                  "type": "core::integer::u256"
+                }
+              ],
+              "outputs": [
+                {
+                  "type": "core::integer::u256"
+                }
+              ],
+              "state_mutability": "external"
             }
           ]
         },
@@ -2058,11 +2078,12 @@
         "end_game",
         "leave_game",
         "mint",
+        "get_player_networth",
         "upgrade"
       ]
     },
     {
-      "address": "0x314a59f806d2c713e576af5dbe618bcf654852ae2a02a804f2108a533db37c4",
+      "address": "0x7a39d1335eeed4abd5199a1147144199e8f82ca0c30b6d5771cebb21006e2fd",
       "class_hash": "0x2f505d476a9b40b16f7a83dfe3994646514331d552beb92019d4440d59b8c8b",
       "abi": [
         {
@@ -2444,7 +2465,7 @@
       ]
     },
     {
-      "address": "0x220dcddab9b3777bb3557f8d79059d3064477697ca596ec826e33350f52d86a",
+      "address": "0x3fa03abd284304e509f1108896faeea10ea7a0f09716c3b68e1da4d9c6358c8",
       "class_hash": "0x5c293b9519284310a34dc395289b68bf291e466fdb6c8b1a5e76d81ada41caa",
       "abi": [
         {
@@ -2770,7 +2791,7 @@
       ]
     },
     {
-      "address": "0x5e789996c11a992b23a03ccd005edd0e03971802c6e93cae4857f430990fa9c",
+      "address": "0x6b9a258ce45e025ed6557476a386860d6d19090074a288909405e9cfd0907a9",
       "class_hash": "0x44faa50f8b0de73a17971b37891610fe7b52ddccdc206019fb4a539dafcd843",
       "abi": [
         {
@@ -3450,7 +3471,7 @@
       ]
     },
     {
-      "address": "0x2edc692070d7496f91789e39a317b58c8a43f2ddf67b5a5bf0819bf71808972",
+      "address": "0x620d45497a40dd0c53a1ca2a950764c24144df234001e720f3c1deb4dda3f77",
       "class_hash": "0x659311ebd500fd5b861df50957d1669ba70d50d2c3dba5aed415f86ce08670",
       "abi": [
         {

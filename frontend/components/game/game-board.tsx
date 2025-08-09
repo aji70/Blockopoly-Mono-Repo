@@ -27,7 +27,8 @@ const tokenValueToEmoji: { [key: number]: string } = {
   8: '🧼',
 };
 
-const CHANCE_CARDS = [
+// Explicitly typed as string[]
+const CHANCE_CARDS: string[] = [
   'Advance to Go (Collect $200)',
   'Advance to MakerDAO Avenue - If you pass Go, collect $200',
   'Advance to Arbitrium Avenue - If you pass Go, collect $200',
@@ -36,7 +37,7 @@ const CHANCE_CARDS = [
   'Bank pays you dividend of $50',
   'Get out of Jail Free',
   'Go Back 3 Spaces',
-  'Go to Jail dirctly do not pass Go do not collect $200', // Note: Typo in wasmdemo, fixed here to match
+  'Go to Jail dirctly do not pass Go do not collect $200',
   'Make general repairs - $25 house, $100 hotel',
   'Pay poor tax of $15',
   'Take a trip to Reading Railroad',
@@ -45,7 +46,8 @@ const CHANCE_CARDS = [
   'Building loan matures - collect $150',
 ];
 
-const COMMUNITY_CHEST_CARDS = [
+// Explicitly typed as string[]
+const COMMUNITY_CHEST_CARDS: string[] = [
   'Advance to Go (Collect $200)',
   'Bank error in your favor - Collect $200',
   'Doctor fee - Pay $50',
@@ -118,10 +120,9 @@ const GameBoard = () => {
         if (!gameData) {
           throw new Error('Game data not found.');
         }
-        // Check status.variant.Ongoing or is_initialised
-        const isOngoing = 
-          (gameData.status && gameData.status.variant && gameData.status.variant.Ongoing !== undefined) || 
-          gameData.is_initialised === true || 
+        const isOngoing =
+          (gameData.status && gameData.status.variant && gameData.status.variant.Ongoing !== undefined) ||
+          gameData.is_initialised === true ||
           Number(gameData.status) === 1;
         if (isOngoing) {
           return gameData;
@@ -140,9 +141,7 @@ const GameBoard = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Poll for game status to handle contract update delays
       const gameData = await waitForGameStatus(gid);
-      
       const currentPlayerAddress = await movementActions.getCurrentPlayer(gid);
       const gamePlayers = await Promise.all(
         (gameData.game_players || []).map(async (addr: any, index: number) => {
@@ -169,7 +168,6 @@ const GameBoard = () => {
       );
       setPlayers(gamePlayers);
 
-      // Sync currentPlayerIndex with contract's next_player
       const currentPlayerIdx = gamePlayers.findIndex((p) => p.address === currentPlayerAddress);
       if (currentPlayerIdx !== -1) {
         setCurrentPlayerIndex(currentPlayerIdx);
@@ -273,9 +271,9 @@ const GameBoard = () => {
       setIsLoading(true);
       setError(null);
       const result = await movementActions.movePlayer(account, gameId, roll);
-      setCurrentPlayerIndex((prev) => (prev + 1) % players.length); // Update locally
+      setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
       if (address && gameId !== null) {
-        await loadGameData(address, gameId); // Sync with contract
+        await loadGameData(address, gameId);
       }
     } catch (err: any) {
       console.error('rollDice Error:', err);
@@ -321,7 +319,7 @@ const GameBoard = () => {
             : movementActions.processCommunityChestCard(account, gameId, byteArray.byteArrayFromString(selectedCard)),
         `process${type}Card`
       );
-      setCurrentPlayerIndex((prev) => (prev + 1) % players.length); // Update locally
+      setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
       setSelectedCard(null);
     } catch (err: any) {
       console.error(`Process ${type} Card Error:`, err);
@@ -369,9 +367,9 @@ const GameBoard = () => {
       setIsLoading(true);
       setError(null);
       const res = await fn();
-      setCurrentPlayerIndex((prev) => (prev + 1) % players.length); // Update locally
+      setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
       if (address && gameId !== null) {
-        await loadGameData(address, gameId); // Sync with contract
+        await loadGameData(address, gameId);
       }
       return res;
     } catch (err: any) {
