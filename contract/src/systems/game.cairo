@@ -1,6 +1,6 @@
 use blockopoly::model::game_model::{Game, GameCounter, GameStatus, GameTrait, GameType};
 use blockopoly::model::game_player_model::{GamePlayer, PlayerSymbol};
-use blockopoly::model::player_model::{AddressToUsername, Player, IsRegistered};
+use blockopoly::model::player_model::{AddressToUsername, IsRegistered, Player};
 use blockopoly::model::property_model::{
     IdToProperty, Property, PropertyToId, PropertyTrait, PropertyType,
 };
@@ -30,7 +30,6 @@ pub trait IGame<T> {
 
 
     fn get_player_networth(ref self: T, address: ContractAddress, game_id: u256) -> u256;
-
 }
 
 // dojo decorator
@@ -43,7 +42,8 @@ pub mod game {
     };
     use super::{
         AddressToUsername, Game, GameCounter, GamePlayer, GameStatus, GameTrait, GameType, IGame,
-        IdToProperty, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait, PropertyType, IsRegistered
+        IdToProperty, IsRegistered, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait,
+        PropertyType,
     };
 
     #[derive(Copy, Drop, Serde)]
@@ -86,16 +86,15 @@ pub mod game {
 
         fn last_game(self: @ContractState) -> u256 {
             let mut world = self.world_default();
-            let  game_counter: GameCounter = world.read_model('v0');
-            game_counter.current_val 
+            let game_counter: GameCounter = world.read_model('v0');
+            game_counter.current_val
         }
         fn create_game(
             ref self: ContractState, game_type: u8, player_symbol: u8, number_of_players: u8,
         ) -> u256 {
-
-               // Get default world
+            // Get default world
             let mut world = self.world_default();
-            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            let is_registered: IsRegistered = world.read_model(get_caller_address());
             assert(is_registered.is_registered, 'not registered');
 
             let player_symbol_enum = match player_symbol {
@@ -119,18 +118,19 @@ pub mod game {
             let game_id = self
                 .create_new_game(game_type_enum, player_symbol_enum, number_of_players);
 
-             let mut player: Player = world.read_model(get_caller_address());
-             player.last_game = game_id;
-             self.mint(get_caller_address(), game_id, 1500);
-             world.write_model(@player);
+            let mut player: Player = world.read_model(get_caller_address());
+            player.last_game = game_id;
+
+            self.mint(get_caller_address(), game_id, 1500);
+            world.write_model(@player);
             game_id
         }
 
         fn join_game(ref self: ContractState, player_symbol: u8, game_id: u256) {
-               // Get default world
+            // Get default world
             let mut world = self.world_default();
 
-            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            let is_registered: IsRegistered = world.read_model(get_caller_address());
             assert(is_registered.is_registered, 'not registered');
 
             let player_symbol_enum = match player_symbol {
@@ -150,14 +150,13 @@ pub mod game {
             self.mint(get_caller_address(), game_id, 1500);
 
             let mut player: Player = world.read_model(get_caller_address());
-             player.last_game = game_id;
-             world.write_model(@player);
+            player.last_game = game_id;
+            world.write_model(@player);
         }
 
         fn start_game(ref self: ContractState, game_id: u256) -> bool {
-
             let mut world = self.world_default();
-            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            let is_registered: IsRegistered = world.read_model(get_caller_address());
             assert(is_registered.is_registered, 'not registered');
 
             let mut game: Game = world.read_model(game_id);
@@ -177,64 +176,64 @@ pub mod game {
             true
         }
 
-     fn leave_game(ref self: ContractState, game_id: u256) {
-    // Load world state
-    let mut world = self.world_default();
+        fn leave_game(ref self: ContractState, game_id: u256) {
+            // Load world state
+            let mut world = self.world_default();
 
-    // Retrieve the game
-    let mut game: Game = world.read_model(game_id);
-    assert(game.is_initialised, 'GAME NOT INITIALISED');
+            // Retrieve the game
+            let mut game: Game = world.read_model(game_id);
+            assert(game.is_initialised, 'GAME NOT INITIALISED');
 
-    // Caller info
-    let caller_address = get_caller_address();
-    let caller_username_map: AddressToUsername = world.read_model(caller_address);
-    let caller_username = caller_username_map.username;
-    assert(caller_username != 0, 'PLAYER NOT REGISTERED');
+            // Caller info
+            let caller_address = get_caller_address();
+            let caller_username_map: AddressToUsername = world.read_model(caller_address);
+            let caller_username = caller_username_map.username;
+            assert(caller_username != 0, 'PLAYER NOT REGISTERED');
 
-    // Retrieve the player's data for this game
-    let mut player: GamePlayer = world.read_model((caller_address, game_id));
-    assert(player.joined, 'PLAYER NOT JOINED');
+            // Retrieve the player's data for this game
+            let mut player: GamePlayer = world.read_model((caller_address, game_id));
+            assert(player.joined, 'PLAYER NOT JOINED');
 
-    // Remove the player from the game_players array using while loop
-    let mut new_players: Array<ContractAddress> = ArrayTrait::new();
-    let mut found = false;
+            // Remove the player from the game_players array using while loop
+            let mut new_players: Array<ContractAddress> = ArrayTrait::new();
+            let mut found = false;
 
-    let len = game.game_players.len();
-    let mut i = 0;
-    while i < len {
-        let current_addr: ContractAddress = *game.game_players[i];
-        if current_addr != caller_address {
-            new_players.append(current_addr);
-        } else {
-            found = true;
+            let len = game.game_players.len();
+            let mut i = 0;
+            while i < len {
+                let current_addr: ContractAddress = *game.game_players[i];
+                if current_addr != caller_address {
+                    new_players.append(current_addr);
+                } else {
+                    found = true;
+                }
+                i += 1;
+            };
+            assert(found, 'PLAYER NOT IN GAME PLAYERS');
+
+            // Update game state
+            game.game_players = new_players;
+            game.players_joined -= 1;
+
+            // Update player state
+            player.joined = false;
+
+            // Game status logic
+            if game.players_joined == 1 && game.status == GameStatus::Ongoing {
+                self.end_game(game_id);
+            } else if game.status == GameStatus::Pending && game.players_joined == 0 {
+                game.status = GameStatus::Ended;
+            }
+
+            // Persist updates
+            world.write_model(@player);
+            world.write_model(@game);
         }
-        i += 1;
-    };
-    assert(found, 'PLAYER NOT IN GAME PLAYERS');
-
-    // Update game state
-    game.game_players = new_players;
-    game.players_joined -= 1;
-
-    // Update player state
-    player.joined = false;
-
-    // Game status logic
-    if game.players_joined == 0 && game.status == GameStatus::Ongoing {
-        game.status = GameStatus::Ended;
-    } else if game.status == GameStatus::Pending && game.players_joined == 0 {
-        game.status = GameStatus::Ended;
-    }
-
-    // Persist updates
-    world.write_model(@player);
-    world.write_model(@game);
-}
 
         fn mint(ref self: ContractState, recepient: ContractAddress, game_id: u256, amount: u256) {
             let mut world = self.world_default();
 
-            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            let is_registered: IsRegistered = world.read_model(get_caller_address());
             assert(is_registered.is_registered, 'not registered');
 
             let mut player: GamePlayer = world.read_model((recepient, game_id));
@@ -243,13 +242,10 @@ pub mod game {
         }
 
         fn end_game(ref self: ContractState, game_id: u256) -> ContractAddress {
-
-            
             let mut world = self.world_default();
-            let is_registered : IsRegistered = world.read_model(get_caller_address());
+            let is_registered: IsRegistered = world.read_model(get_caller_address());
             assert(is_registered.is_registered, 'not registered');
 
-        
             let mut players: Array<GamePlayer> = ArrayTrait::new();
 
             let mut game: Game = world.read_model(game_id);
@@ -298,7 +294,9 @@ pub mod game {
         }
 
 
-        fn get_player_networth(ref self: ContractState, address: ContractAddress, game_id: u256) -> u256{
+        fn get_player_networth(
+            ref self: ContractState, address: ContractAddress, game_id: u256,
+        ) -> u256 {
             let net_worth = self.calculate_net_worth(address, game_id);
             net_worth
         }
@@ -331,11 +329,11 @@ pub mod game {
             let game_id = self.create_new_game_id();
             let timestamp = get_block_timestamp();
 
-             let mut player: GamePlayer = world.read_model((caller_address, game_id));
-             assert(!player.joined, 'player already joined');
-             player.joined = true;
-             player.username = caller_username;
-             world.write_model(@player);
+            let mut player: GamePlayer = world.read_model((caller_address, game_id));
+            assert(!player.joined, 'player already joined');
+            player.joined = true;
+            player.username = caller_username;
+            world.write_model(@player);
 
             // Initialize player symbols
             let (
@@ -430,80 +428,79 @@ pub mod game {
 
         // Allows a registered player to join a pending game by selecting a symbol.
         // Automatically starts the game once the required number of players have joined.
- fn join(ref self: ContractState, player_symbol: PlayerSymbol, game_id: u256) {
-    // Load world state
-    let mut world = self.world_default();
+        fn join(ref self: ContractState, player_symbol: PlayerSymbol, game_id: u256) {
+            // Load world state
+            let mut world = self.world_default();
 
-    // Retrieve game from storage
-    let mut game: Game = world.read_model(game_id);
+            // Retrieve game from storage
+            let mut game: Game = world.read_model(game_id);
 
-    // Ensure the game has been initialized
-    assert(game.is_initialised, 'GAME NOT INITIALISED');
+            // Ensure the game has been initialized
+            assert(game.is_initialised, 'GAME NOT INITIALISED');
 
-    // Ensure the game still has room for new players
-    assert(game.players_joined < game.number_of_players, 'ROOM FILLED');
+            // Ensure the game still has room for new players
+            assert(game.players_joined < game.number_of_players, 'ROOM FILLED');
 
-    // Ensure the game is in the Pending state
-    assert(game.status == GameStatus::Pending, 'GAME NOT PENDING');
+            // Ensure the game is in the Pending state
+            assert(game.status == GameStatus::Pending, 'GAME NOT PENDING');
 
-    // Get the caller's address and corresponding username
-    let caller_address = get_caller_address();
-    let caller_username1: AddressToUsername = world.read_model(caller_address);
-    let caller_username = caller_username1.username;
+            // Get the caller's address and corresponding username
+            let caller_address = get_caller_address();
+            let caller_username1: AddressToUsername = world.read_model(caller_address);
+            let caller_username = caller_username1.username;
 
-    // Ensure the caller is a registered player
-    assert(caller_username != 0, 'PLAYER NOT REGISTERED');
+            // Ensure the caller is a registered player
+            assert(caller_username != 0, 'PLAYER NOT REGISTERED');
 
-    // Ensure the player hasn't already joined under a different symbol
-    self.assert_player_not_already_joined(game.clone().id, caller_username);
+            // Ensure the player hasn't already joined under a different symbol
+            self.assert_player_not_already_joined(game.clone().id, caller_username);
 
-    // Update the correct player symbol slot based on the chosen symbol
-    match player_symbol {
-        PlayerSymbol::Hat => game.player_hat = caller_username,
-        PlayerSymbol::Car => game.player_car = caller_username,
-        PlayerSymbol::Dog => game.player_dog = caller_username,
-        PlayerSymbol::Thimble => game.player_thimble = caller_username,
-        PlayerSymbol::Iron => game.player_iron = caller_username,
-        PlayerSymbol::Battleship => game.player_battleship = caller_username,
-        PlayerSymbol::Boot => game.player_boot = caller_username,
-        PlayerSymbol::Wheelbarrow => game.player_wheelbarrow = caller_username,
-    };
+            // Update the correct player symbol slot based on the chosen symbol
+            match player_symbol {
+                PlayerSymbol::Hat => game.player_hat = caller_username,
+                PlayerSymbol::Car => game.player_car = caller_username,
+                PlayerSymbol::Dog => game.player_dog = caller_username,
+                PlayerSymbol::Thimble => game.player_thimble = caller_username,
+                PlayerSymbol::Iron => game.player_iron = caller_username,
+                PlayerSymbol::Battleship => game.player_battleship = caller_username,
+                PlayerSymbol::Boot => game.player_boot = caller_username,
+                PlayerSymbol::Wheelbarrow => game.player_wheelbarrow = caller_username,
+            }
 
-    // Attempt to join the game with the selected symbol
-    self.try_join_symbol(game.clone().id, player_symbol, caller_username);
+            // Attempt to join the game with the selected symbol
+            self.try_join_symbol(game.clone().id, player_symbol, caller_username);
 
-    // Emit event for player joining
-    world.emit_event(
-        @PlayerJoined {
-            game_id,
-            username: caller_username,
-            timestamp: get_block_timestamp(),
-        },
-    );
+            // Emit event for player joining
+            world
+                .emit_event(
+                    @PlayerJoined {
+                        game_id, username: caller_username, timestamp: get_block_timestamp(),
+                    },
+                );
 
-    // Add player to game list
-    game.game_players.append(caller_address);
+            // Add player to game list
+            game.game_players.append(caller_address);
 
-    // Update players joined count
-    game.players_joined = self.count_joined_players(game.id);
-    game.players_joined += 1;
+            // Update players joined count
+            game.players_joined = self.count_joined_players(game.id);
+            game.players_joined += 1;
 
-    // Update GamePlayer model
-    let mut player: GamePlayer = world.read_model((caller_address, game_id));
-    assert(!player.joined, 'PLAYER ALREADY JOINED');
-    player.joined = true;
-    player.username = caller_username;
+            // Update GamePlayer model
+            let mut player: GamePlayer = world.read_model((caller_address, game_id));
+            assert(!player.joined, 'PLAYER ALREADY JOINED');
+            player.joined = true;
+            player.username = caller_username;
 
-    // Start the game if all players have joined
-    if game.players_joined == game.number_of_players {
-        game.status = GameStatus::Ongoing;
-        world.emit_event(@GameStarted { game_id, timestamp: get_block_timestamp() });
-    }
+            // Start the game if all players have joined
+            if game.players_joined == game.number_of_players {
+                game.status = GameStatus::Ongoing;
+                world.emit_event(@GameStarted { game_id, timestamp: get_block_timestamp() });
+            }
 
-    // Persist the updated states
-    world.write_model(@player);
-    world.write_model(@game);
-}
+            // Persist the updated states
+            world.write_model(@player);
+            world.write_model(@game);
+        }
 
 
         fn calculate_net_worth(

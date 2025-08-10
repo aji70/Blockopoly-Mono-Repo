@@ -35,6 +35,7 @@ pub struct GamePlayer {
     pub strikes: u8,
     pub paid_rent: bool,
     pub joined: bool,
+    pub rolled_dice: bool,
 }
 
 
@@ -88,6 +89,7 @@ impl GamePlayerImpl of GamePlayerTrait {
             strikes: 0,
             paid_rent: false,
             joined: false,
+            rolled_dice: false,
         }
     }
 

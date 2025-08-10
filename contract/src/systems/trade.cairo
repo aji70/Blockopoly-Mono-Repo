@@ -1,5 +1,5 @@
+use blockopoly::model::property_model::TradeOfferDetails;
 use starknet::ContractAddress;
- use blockopoly::model::property_model::TradeOfferDetails;
 // define the interface
 #[starknet::interface]
 pub trait ITrade<T> {
@@ -28,18 +28,14 @@ pub trait ITrade<T> {
     ) -> u256;
     fn approve_counter_trade(ref self: T, trade_id: u256) -> bool;
     fn get_trade(self: @T, trade_id: u256) -> TradeOfferDetails;
-    
 }
 
 // dojo decorator
 #[dojo::contract]
 pub mod trade {
-    use blockopoly::model::property_model::{
-        Property, TradeCounter, TradeOffer, TradeStatus,
-    };
-
     use blockopoly::model::game_model::{Game, GameStatus};
-    use blockopoly::model::game_player_model::{GamePlayer};
+    use blockopoly::model::game_player_model::GamePlayer;
+    use blockopoly::model::property_model::{Property, TradeCounter, TradeOffer, TradeStatus};
 
     // use dojo::event::EventStorage;
 
@@ -881,8 +877,6 @@ pub mod trade {
 
             true
         }
-
-     
     }
 
     #[generate_trait]
@@ -893,7 +887,7 @@ pub mod trade {
             self.world(@"blockopoly")
         }
 
-           fn create_trade_id(ref self: ContractState) -> u256 {
+        fn create_trade_id(ref self: ContractState) -> u256 {
             let mut world = self.world_default();
             let mut trade_counter: TradeCounter = world.read_model('v0');
             let new_val = trade_counter.current_val + 1;
