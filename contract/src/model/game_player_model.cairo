@@ -140,7 +140,6 @@ pub enum PlayerSymbol {
 }
 
 
-
 #[cfg(test)]
 mod tests {
     use super::{GamePlayerTrait, GamePlayer, PlayerSymbol, GamePlayerImpl};
@@ -170,18 +169,15 @@ mod tests {
 
     fn setup_test_player() -> GamePlayer {
         GamePlayerImpl::create_game_player(
-            'test_player',
-            12345.try_into().unwrap(),
-            1_u256,
-            PlayerSymbol::Car,
+            'test_player', 12345.try_into().unwrap(), 1_u256, PlayerSymbol::Car,
         )
     }
 
-     #[test]
+    #[test]
     #[available_gas(1000000)]
     fn test_player_movement() {
         let mut player = setup_test_player();
-        
+
         // Test normal movement
         player = GamePlayerTrait::move(player, 5);
         assert(player.position == 5, 'Movement failed');
@@ -208,109 +204,107 @@ mod tests {
         let deducted = GamePlayerTrait::deduct_game_player(ref player, 300_u256);
         assert(deducted, 'Deduction failed');
         assert!(player.balance == 200, "Balance incorrect after deduction");
-
     }
-
     // #[test]
-    // #[available_gas(1000000)]
-    // fn test_property_management() {
-    //     let mut player = setup_test_player();
+// #[available_gas(1000000)]
+// fn test_property_management() {
+//     let mut player = setup_test_player();
 
     //     // Test adding properties
-    //     assert(
-    //         GamePlayerTrait::add_property_to_game_player(ref player, 12_u8),
-    //         'Failed to add property'
-    //     );
-    //     assert(
-    //         player.properties_owned.len() == 1,
-    //         'Property not added to array'
-    //     );
+//     assert(
+//         GamePlayerTrait::add_property_to_game_player(ref player, 12_u8),
+//         'Failed to add property'
+//     );
+//     assert(
+//         player.properties_owned.len() == 1,
+//         'Property not added to array'
+//     );
 
     //     // Test removing properties
-    //     assert(
-    //         GamePlayerTrait::remove_property_from_game_player(ref player, 12_u8),
-    //         'Failed to remove property'
-    //     );
-    //     assert(
-    //         player.properties_owned.len() == 0,
-    //         'Property not removed from array'
-    //     );
+//     assert(
+//         GamePlayerTrait::remove_property_from_game_player(ref player, 12_u8),
+//         'Failed to remove property'
+//     );
+//     assert(
+//         player.properties_owned.len() == 0,
+//         'Property not removed from array'
+//     );
 
     //     // Test invalid property ID
-    //     assert!(
-    //         !GamePlayerTrait::add_property_to_game_player(ref player, 45_u8),
-    //         "Should reject invalid property ID"
-    //     );
-    // }
+//     assert!(
+//         !GamePlayerTrait::add_property_to_game_player(ref player, 45_u8),
+//         "Should reject invalid property ID"
+//     );
+// }
 
     // #[test]
-    // #[available_gas(1000000)]
-    // fn test_jail_operations() {
-    //     let mut player = setup_test_player();
+// #[available_gas(1000000)]
+// fn test_jail_operations() {
+//     let mut player = setup_test_player();
 
     //     // Test jailing
-    //     assert(
-    //         GamePlayerImpl::jail_game_player(ref player),
-    //         'Failed to jail player'
-    //     );
-    //     assert(player.jailed, 'Jail status not set');
-    //     assert(player.position == 10, 'Position not set to jail');
+//     assert(
+//         GamePlayerImpl::jail_game_player(ref player),
+//         'Failed to jail player'
+//     );
+//     assert(player.jailed, 'Jail status not set');
+//     assert(player.position == 10, 'Position not set to jail');
 
     //     // Test duplicate jailing
-    //     assert(
-    //         !GamePlayerImpl::jail_game_player(ref player),
-    //         'Should reject duplicate jailing'
-    //     );
-    // }
+//     assert(
+//         !GamePlayerImpl::jail_game_player(ref player),
+//         'Should reject duplicate jailing'
+//     );
+// }
 
     // #[test]
-    // #[available_gas(1000000)]
-    // fn test_bankruptcy() {
-    //     let mut player = setup_test_player();
+// #[available_gas(1000000)]
+// fn test_bankruptcy() {
+//     let mut player = setup_test_player();
 
     //     // Test bankruptcy
-    //     assert(
-    //         GamePlayerImpl::declare_bankruptcy(ref player),
-    //         'Failed to declare bankruptcy'
-    //     );
-    //     assert(player.is_bankrupt, 'Bankrupt status not set');
-    //     assert(!player.is_active, 'Player still active after bankruptcy');
+//     assert(
+//         GamePlayerImpl::declare_bankruptcy(ref player),
+//         'Failed to declare bankruptcy'
+//     );
+//     assert(player.is_bankrupt, 'Bankrupt status not set');
+//     assert(!player.is_active, 'Player still active after bankruptcy');
 
     //     // Test operations after bankruptcy
-    //     assert(
-    //         !GamePlayerImpl::pay_game_player(ref player, 100_u256),
-    //         'Should reject transactions after bankruptcy'
-    //     );
-    // }
+//     assert(
+//         !GamePlayerImpl::pay_game_player(ref player, 100_u256),
+//         'Should reject transactions after bankruptcy'
+//     );
+// }
 
     // #[test]
-    // #[available_gas(1000000)]
-    // fn test_player_id_generation() {
-    //     let player = setup_test_player();
-    //     let player_id = GamePlayerImpl::get_player_id(ref player);
+// #[available_gas(1000000)]
+// fn test_player_id_generation() {
+//     let player = setup_test_player();
+//     let player_id = GamePlayerImpl::get_player_id(ref player);
 
     //     // ID should be deterministic based on address and game_id
-    //     let recomputed_id = pedersen(
-    //         player.address.into(),
-    //         u256_to_felt(player.game_id)
-    //     );
-    //     assert(player_id == recomputed_id, 'ID generation mismatch');
-    // }
+//     let recomputed_id = pedersen(
+//         player.address.into(),
+//         u256_to_felt(player.game_id)
+//     );
+//     assert(player_id == recomputed_id, 'ID generation mismatch');
+// }
 
     // // Helper function to create a test player
-    // fn setup_test_player() -> GamePlayer {
-    //     GamePlayerImpl::create_game_player(
-    //         'test',
-    //         12345.try_into().unwrap(),
-    //         1_u256,
-    //         PlayerSymbol::Car
-    //     )
-    // }
+// fn setup_test_player() -> GamePlayer {
+//     GamePlayerImpl::create_game_player(
+//         'test',
+//         12345.try_into().unwrap(),
+//         1_u256,
+//         PlayerSymbol::Car
+//     )
+// }
 
     // // Helper function for u256 → felt252 conversion
-    // fn u256_to_felt(num: u256) -> felt252 {
-    //     let low: felt252 = num.low.try_into().unwrap();
-    //     let high: felt252 = num.high.try_into().unwrap();
-    //     pedersen(low, high)
-    // }
+// fn u256_to_felt(num: u256) -> felt252 {
+//     let low: felt252 = num.low.try_into().unwrap();
+//     let high: felt252 = num.high.try_into().unwrap();
+//     pedersen(low, high)
+// }
 }

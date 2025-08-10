@@ -8,7 +8,8 @@
 //     };
 //     use dojo_starter::interfaces::IActions::{IActionsDispatcher, IActionsDispatcherTrait};
 //     use dojo_starter::model::game_model::{
-//         Game, GameBalance, GameCounter, GameStatus, GameType, m_Game, m_GameBalance, m_GameCounter,
+//         Game, GameBalance, GameCounter, GameStatus, GameType, m_Game, m_GameBalance,
+//         m_GameCounter,
 //     };
 //     use dojo_starter::model::game_player_model::{GamePlayer, PlayerSymbol, m_GamePlayer};
 //     use dojo_starter::model::player_model::{
@@ -59,7 +60,6 @@
 //         ]
 //             .span()
 //     }
-
 
 //     #[test]
 //     fn test_roll_dice() {
@@ -160,7 +160,6 @@
 //         actions_system.register_new_player(username1);
 //     }
 
-
 //     #[test]
 //     fn test_create_game() {
 //         let caller_1 = contract_address_const::<'aji'>();
@@ -201,10 +200,12 @@
 //         actions_system.register_new_player(username);
 
 //         testing::set_contract_address(caller_1);
-//         let _game_id = actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+//         let _game_id = actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat,
+//         4);
 
 //         testing::set_contract_address(caller_1);
-//         let game_id_1 = actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat, 4);
+//         let game_id_1 = actions_system.create_new_game(GameType::PublicGame, PlayerSymbol::Hat,
+//         4);
 //         assert(game_id_1 == 2, 'Wrong game id');
 //     }
 
@@ -304,7 +305,6 @@
 //         testing::set_contract_address(caller_2);
 //         actions_system.join_game(PlayerSymbol::Hat, 1);
 //     }
-
 
 //     #[test]
 //     fn test_each_player_gets_starting_balance() {
@@ -1294,7 +1294,6 @@
 //         assert(property1.development == 3, 'Property dev error');
 //     }
 
-
 //     #[test]
 //     #[available_gas(9223372036854775807)]
 //     fn test_pay_rent_on_four_houses() {
@@ -2132,7 +2131,8 @@
 
 //         let mut community_chest = actions_system.handle_community_chest(1, 2);
 
-//         let (_, ply) = actions_system.process_community_chest_card(g, p, community_chest.clone());
+//         let (_, ply) = actions_system.process_community_chest_card(g, p,
+//         community_chest.clone());
 
 //         assert(ply.position == 2, 'position error');
 //         assert(ply.balance == 1450, 'bal error');
@@ -2177,7 +2177,8 @@
 
 //         let mut community_chest: ByteArray = "Advance to Go (Collect $200)";
 
-//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         assert(ply.position == 0, 'position error');
 //         assert(ply.balance == 1700, 'bal error');
 
@@ -2190,7 +2191,8 @@
 
 //         community_chest = "Bank error in your favor - Collect $200";
 
-//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         g = actions_system.finish_turn(g);
 
 //         assert(ply.position == 2, 'position error');
@@ -2204,7 +2206,8 @@
 
 //         community_chest = "Bank error in your favor - Collect $200";
 
-//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 2, 'position error');
@@ -2218,7 +2221,8 @@
 
 //         community_chest = "Doctor fee - Pay $50";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 17, 'position error');
@@ -2232,7 +2236,8 @@
 
 //         community_chest = "From sale of stock - collect $50";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 17, 'position error');
@@ -2246,7 +2251,8 @@
 
 //         community_chest = "Get Out of Jail Free";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 33, 'position error');
@@ -2261,7 +2267,8 @@
 
 //         community_chest = "Grand Opera Night - collect $50 from every player";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 33, 'position error');
@@ -2275,7 +2282,8 @@
 
 //         community_chest = "Go to Jail";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 10, 'position error');
@@ -2289,7 +2297,8 @@
 
 //         community_chest = "Holiday Fund matures - Receive $100";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 2, 'position error');
@@ -2304,7 +2313,8 @@
 
 //         community_chest = "Income tax refund - Collect $20";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 17, 'position error');
@@ -2320,7 +2330,8 @@
 
 //         community_chest = "Life insurance matures - Collect $100";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 17, 'position error');
@@ -2334,7 +2345,8 @@
 
 //         community_chest = "Pay hospital fees of $100";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 33, 'position error');
@@ -2348,7 +2360,8 @@
 
 //         community_chest = "Pay school fees of $150";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 33, 'position error');
@@ -2362,7 +2375,8 @@
 
 //         community_chest = "Street repairs - $40 per house, $115 per hotel";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 2, 'position error');
@@ -2376,7 +2390,8 @@
 
 //         community_chest = "Won second prize in beauty contest - Collect $10";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 2, 'position error');
@@ -2390,7 +2405,8 @@
 
 //         community_chest = "You inherit $100";
 
-//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (g, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         actions_system.finish_turn(g);
 
 //         assert(ply.position == 17, 'position error');
@@ -2436,7 +2452,8 @@
 
 //         let mut community_chest: ByteArray = "Get Out of Jail Free";
 
-//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         g = actions_system.finish_turn(g);
 
 //         testing::set_contract_address(caller_2);
@@ -2538,7 +2555,8 @@
 
 //         let mut community_chest: ByteArray = "Get Out of Jail Free";
 
-//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p, community_chest);
+//         let (_, ply) = actions_system.process_community_chest_card(g.clone(), p,
+//         community_chest);
 //         g = actions_system.finish_turn(g);
 
 //         testing::set_contract_address(caller_2);
@@ -3921,7 +3939,6 @@
 //         assert(winner == caller_1, 'Winner is not Aji');
 //     }
 
-
 //     #[test]
 //     fn test_end_game() {
 //         let caller_1 = contract_address_const::<'aji'>();
@@ -4129,4 +4146,5 @@
 //         assert!(game.status == GameStatus::Ended, "Game is not finished");
 //     }
 // }
+
 

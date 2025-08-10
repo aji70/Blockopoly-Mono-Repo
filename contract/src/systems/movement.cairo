@@ -110,8 +110,8 @@ pub mod movement {
             }
 
             // Update state
-            game.has_thrown_dice = true;  // Mark that dice has been thrown for this turn
-            
+            game.has_thrown_dice = true; // Mark that dice has been thrown for this turn
+
             world.write_model(@game_player);
             world.write_model(@game);
             world.write_model(@property);
@@ -391,7 +391,7 @@ pub mod movement {
             let mut world = self.world_default();
             let caller = get_caller_address();
             let mut game: Game = world.read_model(game_id);
-            
+
             // Verify it's the current player's turn
             assert!(game.next_player == caller, "Not your turn");
             assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
@@ -412,7 +412,7 @@ pub mod movement {
 
             // Move to next player (circular)
             let next_index = if current_index == num_players - 1 {
-                0  // Back to first player
+                0 // Back to first player
             } else {
                 current_index + 1
             };
@@ -420,7 +420,7 @@ pub mod movement {
             // Update game state for next player
             game.next_player = *game.game_players[next_index];
             game.player_chance = *game.game_players[next_index];
-            game.has_thrown_dice = false;  // Reset for next player
+            game.has_thrown_dice = false; // Reset for next player
 
             // Write updated game state
             world.write_model(@game);

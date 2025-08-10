@@ -208,7 +208,7 @@ impl GameImpl of GameTrait {
         // Generate a public ID using timestamp and creator
         let timestamp: felt252 = get_block_timestamp().into();
         let public_id = Self::generate_public_id(timestamp, created_by, id);
-        
+
         Game {
             id,
             public_id,
@@ -293,13 +293,11 @@ impl GameImpl of GameTrait {
 
     // Generate a unique public ID for a game
     fn generate_public_id(timestamp: felt252, creator: felt252, id: u256) -> felt252 {
-       
-
-       let timestamp_hash: felt252 = timestamp.into();
-       // u256 cannot be converted to felt252 directly hence we broke it down into two
-         let id_felt: felt252 = pedersen(id.low.into(), id.high.into());
-    //    let id_hash: felt252 = 0_u64.into();
-       return pedersen(creator, pedersen(timestamp_hash, id_felt));
+        let timestamp_hash: felt252 = timestamp.into();
+        // u256 cannot be converted to felt252 directly hence we broke it down into two
+        let id_felt: felt252 = pedersen(id.low.into(), id.high.into());
+        //    let id_hash: felt252 = 0_u64.into();
+        return pedersen(creator, pedersen(timestamp_hash, id_felt));
     }
 }
 
@@ -389,15 +387,15 @@ mod tests {
             4, // number_of_players
             ArrayTrait::new(), // game_players
             ArrayTrait::new(), // chance
-            ArrayTrait::new(), // community
+            ArrayTrait::new() // community
         );
 
         // Verify public ID is not zero
         assert(game.get_public_id() != 0, 'Public ID should not be zero');
-        
+
         // Verify internal ID matches
         assert(game.get_internal_id() == 1, 'Internal ID mismatch');
-        
+
         // Verify two games created at different times have different public IDs
         let game2 = GameTrait::new(
             2,
@@ -416,10 +414,10 @@ mod tests {
             ArrayTrait::new(),
             ArrayTrait::new(),
         );
-        
+
         assert!(
             game.get_public_id() != game2.get_public_id(),
-            "Different games should have different public IDs"
+            "Different games should have different public IDs",
         );
     }
 }
