@@ -419,7 +419,7 @@ mod tests {
         testing::set_contract_address(caller_1);
         actions_system.move_player(1, 5);
         let _property = actions_system.get_property(39, 1);
-         let buyppt = actions_system.buy_property(39, 1);
+        let buyppt = actions_system.buy_property(39, 1);
 
         assert(buyppt, 'Buy property failed');
     }

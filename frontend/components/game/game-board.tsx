@@ -14,7 +14,7 @@ import { usePropertyActions } from '@/hooks/usePropertyActions';
 import { useTradeActions } from '@/hooks/useTradeActions';
 import { shortString } from 'starknet';
 import { PLAYER_TOKENS, CHANCE_CARDS, COMMUNITY_CHEST_CARDS } from '@/constants/constants';
-import { Tooltip } from 'react-tooltip';
+
 
 interface Player {
   id: number;

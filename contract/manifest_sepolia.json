@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x617866fe821901b62cf1c30011b8dce0201b8adebab5314e6e507d8e5ebea82",
-    "seed": "ndifrekesbnr",
+    "address": "0x2edac14012158a0b0c484f415696d338a8384fbdbca8a3031b7350aaf8417aa",
+    "seed": "lproduction",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,8 +1328,8 @@
   },
   "contracts": [
     {
-      "address": "0x5076e1bdf846ef70319c37973b110b41501e99d7792a48e6543880f2e21a20f",
-      "class_hash": "0x1daffe87f4ad918f5f8d87c3d3167a4abc3fe508d19cc6dcdc58f09a12d7b48",
+      "address": "0x67f36420560938c793b09c2996e4793ed75c8b4eb20ecfcfcfe35e8118e708",
+      "class_hash": "0x53d5b8469b79a43487ff50a3f3438584df64bf6b20fd511f812bd4237e6e196",
       "abi": [
         {
           "type": "impl",
@@ -1753,6 +1753,10 @@
             {
               "name": "joined",
               "type": "core::bool"
+            },
+            {
+              "name": "rolled_dice",
+              "type": "core::bool"
             }
           ]
         },
@@ -2083,8 +2087,8 @@
       ]
     },
     {
-      "address": "0x7a39d1335eeed4abd5199a1147144199e8f82ca0c30b6d5771cebb21006e2fd",
-      "class_hash": "0x2f505d476a9b40b16f7a83dfe3994646514331d552beb92019d4440d59b8c8b",
+      "address": "0x57e66c033fbcba7e491fedc908575a22b1284eaddfb750476836d7dce55fb26",
+      "class_hash": "0x789b1e0b8bd62a63ed6eecb59bc7941df63e45015c3642b8a7a7adb857767d7",
       "abi": [
         {
           "type": "impl",
@@ -2465,7 +2469,7 @@
       ]
     },
     {
-      "address": "0x3fa03abd284304e509f1108896faeea10ea7a0f09716c3b68e1da4d9c6358c8",
+      "address": "0x2a6bd2d6d582719621cff5291e3c3cef6f2a36177ff50c63360ef73feed5087",
       "class_hash": "0x5c293b9519284310a34dc395289b68bf291e466fdb6c8b1a5e76d81ada41caa",
       "abi": [
         {
@@ -2791,8 +2795,8 @@
       ]
     },
     {
-      "address": "0x6b9a258ce45e025ed6557476a386860d6d19090074a288909405e9cfd0907a9",
-      "class_hash": "0x44faa50f8b0de73a17971b37891610fe7b52ddccdc206019fb4a539dafcd843",
+      "address": "0x6657d54ce90b225edc5d9de090190ab50e60ad3c06cbb394ed0169404c6efe8",
+      "class_hash": "0x40f91fe8c676423e0a3224639b96d4fb485e3c9c2d8812cc36585f1eae88af4",
       "abi": [
         {
           "type": "impl",
@@ -3471,8 +3475,8 @@
       ]
     },
     {
-      "address": "0x620d45497a40dd0c53a1ca2a950764c24144df234001e720f3c1deb4dda3f77",
-      "class_hash": "0x659311ebd500fd5b861df50957d1669ba70d50d2c3dba5aed415f86ce08670",
+      "address": "0x4278ac2fab323622adb1a87d1256fad9527783e2a1f1ade6a1eff47a88cecd9",
+      "class_hash": "0x6cd7fe235d31a1d17415074521fb0b16a0e733b7e8537a9edcea2f4865eee46",
       "abi": [
         {
           "type": "impl",
@@ -3983,7 +3987,7 @@
     },
     {
       "members": [],
-      "class_hash": "0x7d393a8f9ff6127ad54b33d9b8926460a4183d43785bc57dc1ba9c3a9cf6b5a",
+      "class_hash": "0x17e9a1dc76ffe181231b4395a3286fee556241b816f73016f01528e93d50173",
       "tag": "blockopoly-GamePlayer",
       "selector": "0x2048a0e5df9a34115f15e73141a2775346e2d23185045d77f408d24be71074"
     },

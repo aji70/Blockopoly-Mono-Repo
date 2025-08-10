@@ -1,5 +1,5 @@
-use blockopoly::model::property_model::{Property, PropertyType, PropertyTrait};
 use blockopoly::model::game_model::{Game, GameStatus};
+use blockopoly::model::property_model::{Property, PropertyTrait, PropertyType};
 // define the interface
 #[starknet::interface]
 pub trait IProperty<T> {
@@ -16,16 +16,13 @@ pub trait IProperty<T> {
 // dojo decorator
 #[dojo::contract]
 pub mod property {
-    use starknet::{
-        ContractAddress, contract_address_const, get_caller_address,
-    };
-    
     use blockopoly::model::game_player_model::GamePlayer;
-    // use blockopoly::model::player_model::Player;
-    use super::{IProperty, Property, PropertyType, PropertyTrait, Game, GameStatus};
 
     // use dojo::event::EventStorage;
     use dojo::model::ModelStorage;
+    use starknet::{ContractAddress, contract_address_const, get_caller_address};
+    // use blockopoly::model::player_model::Player;
+    use super::{Game, GameStatus, IProperty, Property, PropertyTrait, PropertyType};
 
     // #[derive(Copy, Drop, Serde)]
     // #[dojo::event]
@@ -58,7 +55,7 @@ pub mod property {
             assert(player.position == property.id, 'wrong property');
             if (property.owner != zero_address) {
                 assert(property.owner != caller, 'already own property');
-            //     assert(player.game_id == owner.game_id, 'Not same game');
+                //     assert(player.game_id == owner.game_id, 'Not same game');
                 assert(property.for_sale, 'Property not for sale');
             }
             assert(player.balance >= property.cost_of_property, 'insufficient funds');
@@ -68,7 +65,7 @@ pub mod property {
 
             if property.owner != zero_address {
                 owner.balance += property.cost_of_property;
-            }            
+            }
 
             // Transfer ownership
             property.owner = caller;
@@ -186,7 +183,12 @@ pub mod property {
             let mut property: Property = world.read_model((property_id, game_id));
             assert(property.id == property_id, 'Property not found');
 
-            assert((property.property_type == PropertyType::Property || property.property_type == PropertyType::RailRoad || property.property_type == PropertyType::Utility), 'not property');
+            assert(
+                (property.property_type == PropertyType::Property
+                    || property.property_type == PropertyType::RailRoad
+                    || property.property_type == PropertyType::Utility),
+                'not property',
+            );
 
             let mut player: GamePlayer = world.read_model((caller, game_id));
             let mut owner: GamePlayer = world.read_model((property.owner, game_id));
@@ -219,7 +221,7 @@ pub mod property {
 
             player.paid_rent = true;
 
-              world.write_model(@game);
+            world.write_model(@game);
             world.write_model(@player);
             world.write_model(@owner);
             world.write_model(@property);
@@ -336,6 +338,8 @@ pub mod property {
             let next_index = (current_index + 1) % players_len;
             game.next_player = *game.game_players.at(next_index);
 
+            player.rolled_dice = false;
+            world.write_model(@player);
             world.write_model(@game);
             game
         }

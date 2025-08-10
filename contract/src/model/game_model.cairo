@@ -276,7 +276,7 @@ impl GameImpl of GameTrait {
 // Test module for conversion logic
 #[cfg(test)]
 mod tests {
-    use super::{GameStatus, GameType, GameStatusTrait, GameTypeTrait};
+    use super::{GameStatus, GameStatusTrait, GameType, GameTypeTrait};
 
     #[test]
     fn test_game_status_conversion_roundtrip() {
@@ -296,15 +296,15 @@ mod tests {
     fn test_game_status_transitions() {
         assert!(
             GameStatusTrait::can_transition_to(GameStatus::Pending, GameStatus::Ongoing),
-            'Pending should transition to Ongoing'
+            'Pending should transition to Ongoing',
         );
         assert!(
             GameStatusTrait::can_transition_to(GameStatus::Ongoing, GameStatus::Ended),
-            'Ongoing should transition to Ended'
+            'Ongoing should transition to Ended',
         );
         assert!(
             !GameStatusTrait::can_transition_to(GameStatus::Ended, GameStatus::Ongoing),
-            'Ended should not go back to Ongoing'
+            'Ended should not go back to Ongoing',
         );
     }
 
@@ -331,7 +331,13 @@ mod tests {
 
     #[test]
     fn test_game_type_multiplayer() {
-        assert!(!GameTypeTrait::is_multiplayer(GameType::PublicGame), 'PublicGame should not be multiplayer');
-        assert!(GameTypeTrait::is_multiplayer(GameType::PrivateGame), 'PrivateGame should be multiplayer');
+        assert!(
+            !GameTypeTrait::is_multiplayer(GameType::PublicGame),
+            'PublicGame should not be multiplayer',
+        );
+        assert!(
+            GameTypeTrait::is_multiplayer(GameType::PrivateGame),
+            'PrivateGame should be multiplayer',
+        );
     }
 }
