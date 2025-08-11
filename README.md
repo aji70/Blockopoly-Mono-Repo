@@ -12,7 +12,7 @@ Blockopoly is a **fully on-chain, decentralized version of the classic Monopoly 
 - **On-Chain Assets & Trading** – Properties are represented as **ERC721/ERC1155 NFTs** or **custom Starknet assets**.
 - **Decentralized & Trustless Gameplay** – No centralized authority; game rules enforced by smart contracts.
 - **Account Abstraction for Gasless Transactions** – Improves UX by handling gas fees flexibly.
-
+ta
 ## 🔧 Tech Stack
 
 - **Starknet** – L2 blockchain for scalability

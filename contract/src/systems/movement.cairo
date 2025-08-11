@@ -185,6 +185,7 @@ pub mod movement {
             let property: Property = world.read_model((player.position, game_id));
 
             assert!(player.position == 4 || player.position == 38);
+            assert!(tax_id == player.position);
             // Apply tax based on player position
             if player.position == 4 {
                 assert!(player.balance >= 200);
