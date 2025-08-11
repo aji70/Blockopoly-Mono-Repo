@@ -6,7 +6,7 @@ import { useAccount } from '@starknet-react/core';
 import { useGameActions } from '@/hooks/useGameActions';
 import { PiTelegramLogoLight } from 'react-icons/pi';
 import { FaXTwitter } from 'react-icons/fa6';
-import { IoCopyOutline } from 'react-icons/io5'; // Added for copy icon
+import { IoCopyOutline } from 'react-icons/io5';
 
 interface Game {
   status: { variant: { Pending?: {}; Ongoing?: {} } };
@@ -70,7 +70,7 @@ const GameWaiting = () => {
     { value: '6', label: 'Boot' },
     { value: '7', label: 'Wheelbarrow' },
   ]);
-  const [copySuccess, setCopySuccess] = useState<string | null>(null); // State for copy feedback
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
   const numericGameId = gameId ? Number(gameId) : NaN;
   const isGameReady = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers && isInitialised;
@@ -86,9 +86,9 @@ const GameWaiting = () => {
   if (!process.env.NEXT_PUBLIC_BASE_URL) {
     console.warn('NEXT_PUBLIC_BASE_URL is not set in .env. Using fallback URL:', baseUrl);
   }
-  const gameUrl = `${baseUrl}/join-room?gameId=${gameId}`;
-  const shareText = `Join my Blockopoly game! Game ID: ${gameId}. Play now at ${gameUrl}`;
-  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/+JJq4-cTLznc3YTVk')}&text=${encodeURIComponent(shareText)}`;
+  const gameUrl = `${baseUrl}/game-waiting?gameId=${gameId}`;
+  const shareText = `Join my Blockopoly game in the waiting room! Game ID: ${gameId}. Enter the waiting room at ${gameUrl}`;
+  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(gameUrl)}&text=${encodeURIComponent(shareText)}`;
   const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   // Handle copying the game URL to clipboard
@@ -96,7 +96,7 @@ const GameWaiting = () => {
     try {
       await navigator.clipboard.writeText(gameUrl);
       setCopySuccess('Copied!');
-      setTimeout(() => setCopySuccess(null), 2000); // Clear message after 2 seconds
+      setTimeout(() => setCopySuccess(null), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
       setError('Failed to copy link. Please try again.');
