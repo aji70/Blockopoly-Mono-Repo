@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import herobg from "@/public/heroBg.png";
 import Image from 'next/image';
 import { Dices, KeyRound } from 'lucide-react';
+import { IoIosAddCircle } from 'react-icons/io';
 import { TypeAnimation } from 'react-type-animation';
 import { useRouter } from 'next/navigation';
 import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
@@ -13,7 +14,7 @@ import { useGameActions } from '@/hooks/useGameActions';
 import { useMovementActions } from '@/hooks/useMovementActions';
 import { usePropertyActions } from '@/hooks/usePropertyActions';
 import { useTradeActions } from '@/hooks/useTradeActions';
-import { shortString } from 'starknet';
+import { shortString, BigNumberish } from 'starknet';
 
 // TypeScript interface for the response from player.register
 interface RegisterResponse {
@@ -21,8 +22,63 @@ interface RegisterResponse {
   // Add other fields if returned by player.register
 }
 
+// TypeScript interface for the response from game.createGame
+interface CreateGameResponse {
+  transaction_hash: string;
+  // Add other fields if returned by game.createGame
+}
+
+// Token interface
+interface Token {
+  name: string;
+  emoji: string;
+  value: number;
+}
+
+// Game interface
+interface Game {
+  id: number;
+  creator: `0x${string}` | undefined;
+  players: { address: `0x${string}` | undefined; tokenValue: number }[];
+  maxPlayers: number;
+  availableTokens: Token[];
+  status: { variant: { Pending?: {}; Ongoing?: {} } };
+  is_initialised: boolean;
+  players_joined: string;
+  number_of_players: string;
+  dice_face: string;
+  hat: string;
+  car: string;
+  dog: string;
+  thimble: string;
+  iron: string;
+  battleship: string;
+  boot: string;
+  wheelbarrow: string;
+  player_hat: bigint;
+  player_car: bigint;
+  player_dog: bigint;
+  player_thimble: bigint;
+  player_iron: bigint;
+  player_battleship: bigint;
+  player_boot: bigint;
+  player_wheelbarrow: bigint;
+}
+
+// Token definitions
+const tokens: Token[] = [
+  { name: 'Hat', emoji: '🎩', value: 0 },
+  { name: 'Car', emoji: '🚗', value: 1 },
+  { name: 'Dog', emoji: '🐕', value: 2 },
+  { name: 'Thimble', emoji: '🧵', value: 3 },
+  { name: 'Iron', emoji: '🧼', value: 4 },
+  { name: 'Battleship', emoji: '🚢', value: 5 },
+  { name: 'Boot', emoji: '👞', value: 6 },
+  { name: 'Wheelbarrow', emoji: '🛒', value: 7 },
+];
+
 const HeroSection = () => {
-  const { account, address } = useAccount();
+  const { account, address, connector } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
 
@@ -52,6 +108,14 @@ const HeroSection = () => {
   const [username, setUsername] = useState('');
   const [registrationPending, setRegistrationPending] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [gameToken, setGameToken] = useState(''); // State for private game token
+  const [numPrivatePlayers, setNumPrivatePlayers] = useState(''); // State for number of players in private game
+  const [showModal, setShowModal] = useState(false); // State for create game modal
+  const [showPrivateGameModal, setShowPrivateGameModal] = useState(false); // State for private game modal
+  const [gameType, setGameType] = useState('');
+  const [selectedToken, setSelectedToken] = useState('');
+  const [numberOfPlayers, setNumberOfPlayers] = useState('');
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
 
   const router = useRouter();
   const [gamerName, setGamerName] = useState('');
@@ -60,8 +124,12 @@ const HeroSection = () => {
     setGamerName(e.target.value);
   };
 
-  const handleRouteToPrivateRoom = () => {
-    router.push('/game-settings');
+  const handleTokenChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setGameToken(e.target.value);
+  };
+
+  const handleNumPrivatePlayersChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setNumPrivatePlayers(e.target.value);
   };
 
   const handleRouteToJoinRoom = () => {
@@ -90,28 +158,202 @@ const HeroSection = () => {
     setLoading(true);
     setError(null);
     setResponse(null);
-    setRegistrationPending(true); // Indicate registration is in progress
+    setRegistrationPending(true);
     try {
       const res = await fn();
       console.log(label, res);
       setResponse(res);
 
-      // Add a 5-second delay to allow contract state to update
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
-      // Re-check registration status after delay
       if (address && label === 'register') {
         await checkRegistration();
       }
 
       setRegistrationPending(false);
       setSuccess('Registration successful!');
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       console.error(label, err);
       setError(err?.message || 'Failed to register. Please try again.');
       setRegistrationPending(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Wait for last game update
+  const waitForLastGameUpdate = async (
+    expectedGameId: number,
+    maxWait: number = 90000
+  ) => {
+    const startTime = Date.now();
+    const delay = 2000;
+    const maxAttempts = 45; // 90s / 2s per attempt
+    let attempts = 0;
+
+    while (attempts < maxAttempts && Date.now() - startTime < maxWait) {
+      try {
+        const lastGame = Number(await game.lastGame());
+        console.log(
+          `[waitForLastGameUpdate] Polled lastGame: ${lastGame}, Expected: ${expectedGameId}, Attempt: ${attempts + 1}`
+        );
+        if (lastGame >= expectedGameId && lastGame > 0) {
+          return lastGame;
+        }
+      } catch (err: any) {
+        console.warn(`[waitForLastGameUpdate] Error polling lastGame (Attempt ${attempts + 1}):`, err.message);
+      }
+      attempts++;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    console.warn(`[waitForLastGameUpdate] lastGame did not update. Last: ${await game.lastGame()}, Expected: ${expectedGameId}`);
+    return null; // Trigger fallback
+  };
+
+  // Handle create game
+  const handleCreateGame = async () => {
+    if (!account || !address) {
+      setError('Please connect your wallet');
+      console.log('[handleCreateGame] No wallet connected');
+      return;
+    }
+    if (!isRegistered) {
+      setError('Please register before creating a game');
+      console.log('[handleCreateGame] User not registered');
+      return;
+    }
+    if (!gameType || !selectedToken || !numberOfPlayers) {
+      setError('Please select all fields');
+      console.log('[handleCreateGame] Missing fields:', { gameType, selectedToken, numberOfPlayers });
+      return;
+    }
+
+    const gameTypeNum = Number(gameType);
+    const numPlayers = Number(numberOfPlayers);
+    if (gameType !== '0' && gameType !== '1') {
+      setError('Game type must be Public (0) or Private (1)');
+      console.log('[handleCreateGame] Invalid game type:', gameType);
+      return;
+    }
+    if (isNaN(numPlayers) || numPlayers < 2 || numPlayers > 8) {
+      setError('Number of players must be between 2 and 8');
+      console.log('[handleCreateGame] Invalid number of players:', numPlayers);
+      return;
+    }
+
+    const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
+    if (tokenValue === undefined) {
+      setError('Invalid token selected');
+      console.log('[handleCreateGame] Invalid token:', selectedToken);
+      return;
+    }
+
+    setIsCreatingGame(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const initialLastGame = Number(await game.lastGame()) || 0;
+      console.log(`[handleCreateGame] Initial lastGame: ${initialLastGame}`);
+
+      console.log(`[handleCreateGame] Creating game with type: ${gameTypeNum}, token: ${tokenValue}, players: ${numPlayers}, wallet: ${connector?.name || 'unknown'}`);
+      const tx = await game.createGame(account, gameTypeNum, tokenValue, numPlayers);
+      console.log('[handleCreateGame] Create game transaction:', tx);
+
+      if (!tx?.transaction_hash) {
+        throw new Error('No transaction hash returned from createGame');
+      }
+
+      console.log('[handleCreateGame] Waiting 30 seconds for contract to update...');
+      await new Promise((resolve) => setTimeout(resolve, 30000));
+
+      const newGameId = initialLastGame + 1;
+      console.log(`[handleCreateGame] Assumed new game ID: ${newGameId}`);
+
+      const currentLastGame = await waitForLastGameUpdate(newGameId);
+      console.log(`[handleCreateGame] Current lastGame: ${currentLastGame}`);
+
+      if (currentLastGame === null) {
+        throw new Error('Game creation not confirmed by lastGame update');
+      }
+
+      const gameData = await game.getGame(newGameId) as Game;
+      if (!gameData || !gameData.is_initialised) {
+        throw new Error('Game data not found or not initialized');
+      }
+      console.log('[handleCreateGame] Game data confirmed:', gameData);
+
+      const updatedGames = [...new Set([...JSON.parse(localStorage.getItem('ongoingGames') || '[]'), newGameId])];
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      setShowModal(false);
+      console.log(`[handleCreateGame] Redirecting to /game-waiting?gameId=${newGameId}&creator=${address}`);
+      router.push(`/game-waiting?gameId=${newGameId}&creator=${address}`);
+    } catch (err: any) {
+      console.error('[handleCreateGame] Error:', err.message);
+      setError(err?.message || 'Failed to create game. Please try again.');
+    } finally {
+      setIsCreatingGame(false);
+    }
+  };
+
+  // Handle private game creation
+  const handleCreatePrivateGame = async () => {
+    if (!account || !gameToken || !numPrivatePlayers) {
+      setError('Please connect your wallet, select a token, and select number of players.');
+      return;
+    }
+    const numPlayers = Number(numPrivatePlayers);
+    if (isNaN(numPlayers) || numPlayers < 2 || numPlayers > 8) {
+      setError('Number of players must be between 2 and 8');
+      return;
+    }
+    const tokenValue = tokens.find((t) => t.name === gameToken)?.value;
+    if (tokenValue === undefined) {
+      setError('Invalid token selected');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const initialLastGame = Number(await game.lastGame()) || 0;
+      const tx = await game.createGame(account, 1, tokenValue, numPlayers);
+      console.log('createPrivateGame', tx);
+
+      if (!tx?.transaction_hash) {
+        throw new Error('No transaction hash returned from createGame');
+      }
+
+      console.log('[createPrivateGame] Waiting 30 seconds for contract to update...');
+      await new Promise((resolve) => setTimeout(resolve, 30000));
+
+      const newGameId = initialLastGame + 1;
+      console.log(`[createPrivateGame] Assumed new game ID: ${newGameId}`);
+
+      const currentLastGame = await waitForLastGameUpdate(newGameId);
+      console.log(`[createPrivateGame] Current lastGame: ${currentLastGame}`);
+
+      if (currentLastGame === null) {
+        throw new Error('Game creation not confirmed by lastGame update');
+      }
+
+      const gameData = await game.getGame(newGameId) as Game;
+      if (!gameData || !gameData.is_initialised) {
+        throw new Error('Game data not found or not initialized');
+      }
+      console.log('[createPrivateGame] Game data confirmed:', gameData);
+
+      const updatedGames = [...new Set([...JSON.parse(localStorage.getItem('ongoingGames') || '[]'), newGameId])];
+      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+      setSuccess('Private game created successfully!');
+      setGameToken('');
+      setNumPrivatePlayers('');
+      setShowPrivateGameModal(false);
+      setTimeout(() => setSuccess(null), 3000);
+      router.push(`/game-waiting?gameId=${newGameId}&creator=${address}`);
+    } catch (err: any) {
+      console.error('createPrivateGame', err);
+      setError(err?.message || 'Failed to create private game. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -257,61 +499,232 @@ const HeroSection = () => {
           )}
 
           {/* join/create room */}
-          <div className="flex justify-center items-center mt-2">
-            <button
-              type="button"
-              onClick={handleRouteToJoinRoom}
-              className="relative left-2 group w-[140px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
-            >
-              <svg
-                width="140"
-                height="40"
-                viewBox="0 0 140 40"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute top-0 left-0 w-full h-full"
-              >
-                <path
-                  d="M6 1H134C138.373 1 140.996 5.85486 138.601 9.5127L120.167 37.5127C119.151 39.0646 117.42 40 115.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
-                  fill="#0E1415"
-                  stroke="#003B3E"
-                  strokeWidth={1}
-                  className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[#0FF0FC] capitalize text-[12px] font-dmSans font-medium z-10">
-                <Dices className="mr-1.5 w-[16px] h-[16px]" />
-                Join Room
-              </span>
-            </button>
+          <div className="flex justify-center items-center mt-2 gap-4">
+            {address && isRegistered && (
+              <>
+                {/* Create Game Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowModal(true)}
+                  className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+                  disabled={loading}
+                >
+                  <svg
+                    width="227"
+                    height="40"
+                    viewBox="0 0 227 40"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
+                  >
+                    <path
+                      d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                      fill="#003B3E"
+                      stroke="#003B3E"
+                      strokeWidth={1}
+                      className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] capitalize text-[12px] font-dmSans font-medium z-10">
+                    <IoIosAddCircle className="mr-1.5 w-[16px] h-[16px]" />
+                    Create Game
+                  </span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleRouteToPrivateRoom}
-              className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
-            >
-              <svg
-                width="227"
-                height="40"
-                viewBox="0 0 227 40"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
-              >
-                <path
-                  d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
-                  fill="#003B3E"
-                  stroke="#003B3E"
-                  strokeWidth={1}
-                  className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
-                />
-              </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] capitalize text-[12px] font-dmSans font-medium z-10">
-                <KeyRound className="mr-1.5 w-[16px] h-[16px]" />
-                Create A Private Game
-              </span>
-            </button>
+                {/* Join Room Button */}
+                <button
+                  type="button"
+                  onClick={handleRouteToJoinRoom}
+                  className="relative left-2 group w-[140px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+                >
+                  <svg
+                    width="140"
+                    height="40"
+                    viewBox="0 0 140 40"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute top-0 left-0 w-full h-full"
+                  >
+                    <path
+                      d="M6 1H134C138.373 1 140.996 5.85486 138.601 9.5127L120.167 37.5127C119.151 39.0646 117.42 40 115.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                      fill="#0E1415"
+                      stroke="#003B3E"
+                      strokeWidth={1}
+                      className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[#0FF0FC] capitalize text-[12px] font-dmSans font-medium z-10">
+                    <Dices className="mr-1.5 w-[16px] h-[16px]" />
+                    Join Room
+                  </span>
+                </button>
+
+                {/* Create A Private Game Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowPrivateGameModal(true)}
+                  className="relative group w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+                  disabled={loading}
+                >
+                  <svg
+                    width="227"
+                    height="40"
+                    viewBox="0 0 227 40"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
+                  >
+                    <path
+                      d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                      fill="#003B3E"
+                      stroke="#003B3E"
+                      strokeWidth={1}
+                      className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
+                    />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] capitalize text-[12px] font-dmSans font-medium z-10">
+                    <KeyRound className="mr-1.5 w-[16px] h-[16px]" />
+                    Create A Private Game
+                  </span>
+                </button>
+              </>
+            )}
           </div>
+
+          {/* Create Game Modal */}
+          {showModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
+              <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
+                <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
+                  Create New Game
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Game Type</label>
+                    <select
+                      value={gameType}
+                      onChange={(e) => setGameType(e.target.value)}
+                      className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>Select game type</option>
+                      <option value="0">Public</option>
+                      <option value="1">Private</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
+                    <select
+                      value={selectedToken}
+                      onChange={(e) => setSelectedToken(e.target.value)}
+                      className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>Select a token</option>
+                      {tokens.map((token) => (
+                        <option key={token.name} value={token.name}>
+                          {token.emoji} {token.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Number of Players</label>
+                    <select
+                      value={numberOfPlayers}
+                      onChange={(e) => setNumberOfPlayers(e.target.value)}
+                      className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>Select number of players</option>
+                      {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                        <option key={num} value={num}>
+                          {num}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleCreateGame}
+                    className="w-full bg-[#00F0FF] text-[#010F10] py-2 rounded font-bold"
+                    disabled={loading}
+                  >
+                    Create Game
+                  </button>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="w-full text-sm mt-2 text-center underline text-[#869298]"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Private Game Modal */}
+          {showPrivateGameModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
+              <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
+                <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
+                  Create Private Game
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
+                    <select
+                      value={gameToken}
+                      onChange={handleTokenChange}
+                      className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>Select a token</option>
+                      {tokens.map((token) => (
+                        <option key={token.name} value={token.name}>
+                          {token.emoji} {token.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Number of Players</label>
+                    <select
+                      value={numPrivatePlayers}
+                      onChange={handleNumPrivatePlayersChange}
+                      className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
+                      disabled={loading}
+                    >
+                      <option value="" disabled>Select number of players</option>
+                      {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                        <option key={num} value={num}>
+                          {num}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={handleCreatePrivateGame}
+                    className="w-full bg-[#00F0FF] text-[#010F10] py-2 rounded font-bold"
+                    disabled={loading}
+                  >
+                    Create Private Game
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPrivateGameModal(false);
+                      setGameToken('');
+                      setNumPrivatePlayers('');
+                    }}
+                    className="w-full text-sm mt-2 text-center underline text-[#869298]"
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </section>

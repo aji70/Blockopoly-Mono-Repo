@@ -6,6 +6,7 @@ import { useAccount } from '@starknet-react/core';
 import { useGameActions } from '@/hooks/useGameActions';
 import { PiTelegramLogoLight } from 'react-icons/pi';
 import { FaXTwitter } from 'react-icons/fa6';
+import { IoCopyOutline } from 'react-icons/io5';
 
 interface Game {
   status: { variant: { Pending?: {}; Ongoing?: {} } };
@@ -69,6 +70,7 @@ const GameWaiting = () => {
     { value: '6', label: 'Boot' },
     { value: '7', label: 'Wheelbarrow' },
   ]);
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
   const numericGameId = gameId ? Number(gameId) : NaN;
   const isGameReady = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers && isInitialised;
@@ -84,10 +86,22 @@ const GameWaiting = () => {
   if (!process.env.NEXT_PUBLIC_BASE_URL) {
     console.warn('NEXT_PUBLIC_BASE_URL is not set in .env. Using fallback URL:', baseUrl);
   }
-  const gameUrl = `${baseUrl}/join-room?gameId=${gameId}`;
-  const shareText = `Join my Blockopoly game! Game ID: ${gameId}. Play now at ${gameUrl}`;
-  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/+JJq4-cTLznc3YTVk')}&text=${encodeURIComponent(shareText)}`;
+  const gameUrl = `${baseUrl}/game-waiting?gameId=${gameId}`;
+  const shareText = `Join my Blockopoly game in the waiting room! Game ID: ${gameId}. Enter the waiting room at ${gameUrl}`;
+  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(gameUrl)}&text=${encodeURIComponent(shareText)}`;
   const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+
+  // Handle copying the game URL to clipboard
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(gameUrl);
+      setCopySuccess('Copied!');
+      setTimeout(() => setCopySuccess(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      setError('Failed to copy link. Please try again.');
+    }
+  };
 
   const fetchGameData = useCallback(async () => {
     if (!gameId || isNaN(numericGameId) || !address) return;
@@ -201,7 +215,7 @@ const GameWaiting = () => {
     try {
       setLoading(true);
       setError(null);
-      await gameActions.leaveGame(account, numericGameId); // Assuming leaveGame exists in useGameActions
+      await gameActions.leaveGame(account, numericGameId);
       console.log('[GameWaiting] Leave Game called:', { gameId });
       await fetchGameData();
     } catch (err: any) {
@@ -289,27 +303,48 @@ const GameWaiting = () => {
             </div>
           )}
 
-          {/* Share Game Code Buttons */}
+          {/* Share Game Code Section */}
           {showShareButtons && (
-            <div className="mt-6 flex justify-center gap-4">
-              <a
-                href={telegramShareUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
-              >
-                <PiTelegramLogoLight className="mr-2 w-5 h-5" />
-                Share on Telegram
-              </a>
-              <a
-                href={twitterShareUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
-              >
-                <FaXTwitter className="mr-2 w-5 h-5" />
-                Share on X
-              </a>
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={gameUrl}
+                  readOnly
+                  className="w-full bg-[#0A1A1B] text-[#F0F7F7] p-2 rounded border border-[#00F0FF]/30 focus:outline-none font-orbitron text-sm"
+                  title="Game URL"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-3 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
+                  disabled={loading}
+                >
+                  <IoCopyOutline className="w-5 h-5" />
+                </button>
+              </div>
+              {copySuccess && (
+                <p className="text-green-400 text-xs text-center">{copySuccess}</p>
+              )}
+              <div className="flex justify-center gap-4">
+                <a
+                  href={telegramShareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
+                >
+                  <PiTelegramLogoLight className="mr-2 w-5 h-5" />
+                  Share on Telegram
+                </a>
+                <a
+                  href={twitterShareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
+                >
+                  <FaXTwitter className="mr-2 w-5 h-5" />
+                  Share on X
+                </a>
+              </div>
             </div>
           )}
 

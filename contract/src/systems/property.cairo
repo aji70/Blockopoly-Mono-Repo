@@ -1,6 +1,7 @@
 use blockopoly::model::game_model::{Game, GameStatus};
 use blockopoly::model::property_model::{Property, PropertyTrait, PropertyType};
-// define the interface
+// define the interfaceGame ID
+
 #[starknet::interface]
 pub trait IProperty<T> {
     fn buy_property(ref self: T, property_id: u8, game_id: u256) -> bool;
@@ -42,8 +43,10 @@ pub mod property {
             // get the game and check it is ongoing
             let mut found_game: Game = world.read_model(game_id);
             assert!(found_game.status == GameStatus::Ongoing, "game has not started yet ");
-
+            
             let caller = get_caller_address();
+            assert!(found_game.next_player == caller, "Not your turn");
+
             // Load the property
             let mut property: Property = world.read_model((property_id, game_id));
             let mut player: GamePlayer = world.read_model((caller, game_id));
