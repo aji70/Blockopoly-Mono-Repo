@@ -86,7 +86,7 @@ const GameWaiting = () => {
   }
   const gameUrl = `${baseUrl}/join-room?gameId=${gameId}`;
   const shareText = `Join my Blockopoly game! Game ID: ${gameId}. Play now at ${gameUrl}`;
-  const telegramShareUrl = `https://t.me/share/url?text=${encodeURIComponent(shareText)}`;
+  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent('https://t.me/+JJq4-cTLznc3YTVk')}&text=${encodeURIComponent(shareText)}`;
   const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
 
   const fetchGameData = useCallback(async () => {
