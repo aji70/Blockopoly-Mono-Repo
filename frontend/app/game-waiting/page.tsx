@@ -41,6 +41,23 @@ interface Player {
   joined: boolean;
 }
 
+interface Token {
+  name: string;
+  emoji: string;
+  value: number;
+}
+
+const tokens: Token[] = [
+  { name: 'Hat', emoji: '🎩', value: 0 },
+  { name: 'Car', emoji: '🚗', value: 1 },
+  { name: 'Dog', emoji: '🐕', value: 2 },
+  { name: 'Thimble', emoji: '🧵', value: 3 },
+  { name: 'Iron', emoji: '🧼', value: 4 },
+  { name: 'Battleship', emoji: '🚢', value: 5 },
+  { name: 'Boot', emoji: '👞', value: 6 },
+  { name: 'Wheelbarrow', emoji: '🛒', value: 7 },
+];
+
 const GameWaiting = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -60,16 +77,7 @@ const GameWaiting = () => {
   const [error, setError] = useState<string | null>(null);
   const [playerSymbol, setPlayerSymbol] = useState<string>('0');
   const [playerSymbolFields, setPlayerSymbolFields] = useState<string[]>([]);
-  const [availableSymbols, setAvailableSymbols] = useState<{ value: string; label: string }[]>([
-    { value: '0', label: 'Hat' },
-    { value: '1', label: 'Car' },
-    { value: '2', label: 'Dog' },
-    { value: '3', label: 'Thimble' },
-    { value: '4', label: 'Iron' },
-    { value: '5', label: 'Battleship' },
-    { value: '6', label: 'Boot' },
-    { value: '7', label: 'Wheelbarrow' },
-  ]);
+  const [availableSymbols, setAvailableSymbols] = useState<{ value: string; label: string }[]>([]);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
   const numericGameId = gameId ? Number(gameId) : NaN;
@@ -120,14 +128,14 @@ const GameWaiting = () => {
       const playerInGame = gameData.game_players.includes(address);
 
       const symbolFields = [
-        { field: 'player_hat', label: 'Hat', value: '0' },
-        { field: 'player_car', label: 'Car', value: '1' },
-        { field: 'player_dog', label: 'Dog', value: '2' },
-        { field: 'player_thimble', label: 'Thimble', value: '3' },
-        { field: 'player_iron', label: 'Iron', value: '4' },
-        { field: 'player_battleship', label: 'Battleship', value: '5' },
-        { field: 'player_boot', label: 'Boot', value: '6' },
-        { field: 'player_wheelbarrow', label: 'Wheelbarrow', value: '7' },
+        { field: 'player_hat', label: '🎩 Hat', value: '0' },
+        { field: 'player_car', label: '🚗 Car', value: '1' },
+        { field: 'player_dog', label: '🐕 Dog', value: '2' },
+        { field: 'player_thimble', label: '🧵 Thimble', value: '3' },
+        { field: 'player_iron', label: '🧼 Iron', value: '4' },
+        { field: 'player_battleship', label: '🚢 Battleship', value: '5' },
+        { field: 'player_boot', label: '👞 Boot', value: '6' },
+        { field: 'player_wheelbarrow', label: '🛒 Wheelbarrow', value: '7' },
       ];
       console.log('[GameWaiting] Player Fields:', {
         player_hat: gameData.player_hat,
@@ -359,6 +367,7 @@ const GameWaiting = () => {
                       onChange={(e) => setPlayerSymbol(e.target.value)}
                       className="bg-[#0A1A1B] text-[#F0F7F7] p-2 rounded border border-[#00F0FF]/30 focus:outline-none focus:ring-2 focus:ring-[#00F0FF] font-orbitron"
                     >
+                      <option value="" disabled>Select a symbol</option>
                       {availableSymbols.map((symbol) => (
                         <option key={symbol.value} value={symbol.value}>
                           {symbol.label}
