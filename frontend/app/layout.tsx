@@ -2,6 +2,7 @@ import { dmSans, kronaOne, orbitron } from "@/components/shared/fonts";
 import NavBar from "@/components/shared/navbar";
 import ScrollToTopBtn from "@/components/shared/scroll-to-top-btn";
 import Test from "@/components/Test";
+import WasmDemo from "@/components/WasmDemo";
 import { StarknetProvider } from "@/config/starknet-provider";
 import { WalletProvider } from "@/context/wallet-provider";
 import "@/styles/globals.css";
@@ -34,6 +35,7 @@ export default function RootLayout({
           <StarknetProvider>
             <WalletProvider>
               <NavBar />
+               {/* <WasmDemo /> */}
                {children}
                <ScrollToTopBtn />
             </WalletProvider>

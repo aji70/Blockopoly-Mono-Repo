@@ -1,5 +1,5 @@
-use starknet::{ContractAddress, contract_address_const};
-
+use starknet::{ContractAddress, contract_address_const, get_block_timestamp};
+use core::pedersen::pedersen;
 // Keeps track of the state of the game
 #[derive(Serde, Copy, Drop, Introspect, PartialEq)]
 #[dojo::model]
@@ -13,7 +13,8 @@ pub struct GameCounter {
 #[dojo::model]
 pub struct Game {
     #[key]
-    pub id: u256, // Unique id of the game
+    pub id: u256, // Internal unique id of the game
+    pub public_id: felt252, // Public facing unique identifier
     pub created_by: felt252, // Address of the game creator
     pub is_initialised: bool, // Indicate whether game with given Id has been created/initialised
     pub status: GameStatus, // Status of the game
@@ -70,6 +71,9 @@ pub trait GameTrait {
     ) -> Game;
     fn restart(ref self: Game);
     fn terminate_game(ref self: Game);
+    fn get_public_id(self: @Game) -> felt252;
+    fn get_internal_id(self: @Game) -> u256;
+    fn generate_public_id(timestamp: felt252, creator: felt252, id: u256) -> felt252;
 }
 
 // Represents the status of the game
@@ -201,8 +205,13 @@ impl GameImpl of GameTrait {
         community: Array<ByteArray>,
     ) -> Game {
         let zero_address = contract_address_const::<0x0>();
+        // Generate a public ID using timestamp and creator
+        let timestamp: felt252 = get_block_timestamp().into();
+        let public_id = Self::generate_public_id(timestamp, created_by, id);
+
         Game {
             id,
+            public_id,
             created_by,
             is_initialised: true,
             status: GameStatus::Pending,
@@ -271,12 +280,31 @@ impl GameImpl of GameTrait {
     fn terminate_game(ref self: Game) {
         self.status = GameStatus::Ended;
     }
+
+    // Get the display-friendly public ID of the game
+    fn get_public_id(self: @Game) -> felt252 {
+        *self.public_id
+    }
+
+    // Get the internal ID used for system operations
+    fn get_internal_id(self: @Game) -> u256 {
+        *self.id
+    }
+
+    // Generate a unique public ID for a game
+    fn generate_public_id(timestamp: felt252, creator: felt252, id: u256) -> felt252 {
+        let timestamp_hash: felt252 = timestamp.into();
+        // u256 cannot be converted to felt252 directly hence we broke it down into two
+        let id_felt: felt252 = pedersen(id.low.into(), id.high.into());
+        //    let id_hash: felt252 = 0_u64.into();
+        return pedersen(creator, pedersen(timestamp_hash, id_felt));
+    }
 }
 
 // Test module for conversion logic
 #[cfg(test)]
 mod tests {
-    use super::{GameStatus, GameStatusTrait, GameType, GameTypeTrait};
+    use super::{GameStatus, GameType, GameTrait, GameStatusTrait, GameTypeTrait};
 
     #[test]
     fn test_game_status_conversion_roundtrip() {
@@ -287,7 +315,7 @@ mod tests {
             let felt_val: felt252 = status.into();
             let converted_back: Option<GameStatus> = felt_val.try_into();
 
-            assert(converted_back.is_some(), 'Status conversion should succeed');
+            assert!(converted_back.is_some(), "Status conversion should succeed");
             assert(converted_back.unwrap() == status, 'Should match original status');
         }
     }
@@ -296,23 +324,23 @@ mod tests {
     fn test_game_status_transitions() {
         assert!(
             GameStatusTrait::can_transition_to(GameStatus::Pending, GameStatus::Ongoing),
-            'Pending should transition to Ongoing',
+            "Pending should transition to Ongoing",
         );
         assert!(
             GameStatusTrait::can_transition_to(GameStatus::Ongoing, GameStatus::Ended),
-            'Ongoing should transition to Ended',
+            "Ongoing should transition to Ended",
         );
         assert!(
             !GameStatusTrait::can_transition_to(GameStatus::Ended, GameStatus::Ongoing),
-            'Ended should not go back to Ongoing',
+            "Ended should not go back to Ongoing",
         );
     }
 
     #[test]
     fn test_game_status_active() {
-        assert!(!GameStatusTrait::is_active(GameStatus::Pending), 'Pending should not be active');
-        assert!(GameStatusTrait::is_active(GameStatus::Ongoing), 'Ongoing should be active');
-        assert!(!GameStatusTrait::is_active(GameStatus::Ended), 'Ended should not be active');
+        assert!(!GameStatusTrait::is_active(GameStatus::Pending), "Pending should not be active");
+        assert!(GameStatusTrait::is_active(GameStatus::Ongoing), "Ongoing should be active");
+        assert!(!GameStatusTrait::is_active(GameStatus::Ended), "Ended should not be active");
     }
 
     #[test]
@@ -324,8 +352,8 @@ mod tests {
             let felt_val: felt252 = game_type.into();
             let converted_back: Option<GameType> = felt_val.try_into();
 
-            assert(converted_back.is_some(), 'GameType conversion should succeed');
-            assert(converted_back.unwrap() == game_type, 'Should match original game type');
+            assert!(converted_back.is_some(), "GameType conversion should succeed");
+            assert!(converted_back.unwrap() == game_type, "Should match original game type");
         }
     }
 
@@ -333,11 +361,63 @@ mod tests {
     fn test_game_type_multiplayer() {
         assert!(
             !GameTypeTrait::is_multiplayer(GameType::PublicGame),
-            'PublicGame should not be multiplayer',
+            "PublicGame should not be multiplayer",
         );
         assert!(
             GameTypeTrait::is_multiplayer(GameType::PrivateGame),
-            'PrivateGame should be multiplayer',
+            "PrivateGame should be multiplayer",
+        );
+    }
+
+    #[test]
+    fn test_game_public_id() {
+        // Create a game
+        let game = GameTrait::new(
+            1, // id
+            123, // created_by
+            GameType::PublicGame,
+            0, // player_hat
+            0, // player_car
+            0, // player_dog
+            0, // player_thimble
+            0, // player_iron
+            0, // player_battleship
+            0, // player_boot
+            0, // player_wheelbarrow
+            4, // number_of_players
+            ArrayTrait::new(), // game_players
+            ArrayTrait::new(), // chance
+            ArrayTrait::new() // community
+        );
+
+        // Verify public ID is not zero
+        assert(game.get_public_id() != 0, 'Public ID should not be zero');
+
+        // Verify internal ID matches
+        assert(game.get_internal_id() == 1, 'Internal ID mismatch');
+
+        // Verify two games created at different times have different public IDs
+        let game2 = GameTrait::new(
+            2,
+            123,
+            GameType::PublicGame,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            4,
+            ArrayTrait::new(),
+            ArrayTrait::new(),
+            ArrayTrait::new(),
+        );
+
+        assert!(
+            game.get_public_id() != game2.get_public_id(),
+            "Different games should have different public IDs",
         );
     }
 }
