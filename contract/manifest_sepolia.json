@@ -1,8 +1,8 @@
 {
   "world": {
     "class_hash": "0x13d92333361bb7049c1232c0a5404e2c19082ededc3a73d75cb33fa952adec7",
-    "address": "0x62cf08a8a507e29bacaaa13d1a52589996551fd22d15f7b601f7f0764ea19e8",
-    "seed": "liveproduction",
+    "address": "0x16477004b63f7b3bdc177984b16ef7fbd8bceb0709e798d44d7561571af1b71",
+    "seed": "liveproduction1",
     "name": "Dojo starter",
     "entrypoints": [
       "uuid",
@@ -1328,7 +1328,7 @@
   },
   "contracts": [
     {
-      "address": "0x1e8e36b8a5027a12db114eeb5ac012c0aee4cf10da1e786b42fdf1020ebaaba",
+      "address": "0x2d1d865af79adcd355b6762ed5e24a1fe5d1b30b5220210026493239f3a458a",
       "class_hash": "0x53d5b8469b79a43487ff50a3f3438584df64bf6b20fd511f812bd4237e6e196",
       "abi": [
         {
@@ -2087,7 +2087,7 @@
       ]
     },
     {
-      "address": "0x21101f2c023f34935d8f09d18756fc6a00c6bfbce65d0aca334988e502b0287",
+      "address": "0x8fa952e11693af031518393099cc00d1aa1d93bc0cc390b32d5d58c7724d7b",
       "class_hash": "0x1b776b371930826c270bb2fba2a6f26141fbf2e665956f7c8c61adba95519d3",
       "abi": [
         {
@@ -2469,7 +2469,7 @@
       ]
     },
     {
-      "address": "0x46fda9ca8bb371b2f0cdec3123fc7024f7d43be3720d9217186ebbc041bd623",
+      "address": "0x4e6dedd2faa223935e9cd8d24b1d2103734428c981e22b12678f8682b6e34c2",
       "class_hash": "0x5c293b9519284310a34dc395289b68bf291e466fdb6c8b1a5e76d81ada41caa",
       "abi": [
         {
@@ -2795,7 +2795,7 @@
       ]
     },
     {
-      "address": "0x7898e0579105e772eebd43e9b78ccfc527011cd44d2a356bcbc45340ce8d223",
+      "address": "0x296bf0febfafa0fb13da6a6fcdd2b626212ae0ff5b5d3bb7bbbab8736d863ef",
       "class_hash": "0xbfc9ea7ea08f4d660e3d603fd9e3323207713fdb1e1b68114523b363a8a2ef",
       "abi": [
         {
@@ -3475,7 +3475,7 @@
       ]
     },
     {
-      "address": "0x5194b333546a4def51b8da8671e2784e9418ebb788bd3cfdb38ab3ecc276c3",
+      "address": "0x56319a1a0e1edaf0fe6832f244fd356d7d0027dc8a43fe4ea12ba15ee5ab275",
       "class_hash": "0x6cd7fe235d31a1d17415074521fb0b16a0e733b7e8537a9edcea2f4865eee46",
       "abi": [
         {
