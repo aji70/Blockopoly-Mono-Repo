@@ -39,3 +39,4 @@ default = "blockopoly"
 
 "blockopoly-TradeOfferDetails" = ["blockopoly-game", "blockopoly-movement", "blockopoly-player", "blockopoly-property", "blockopoly-trade"]
 "blockopoly-TradeCounter" = ["blockopoly-game", "blockopoly-movement", "blockopoly-player", "blockopoly-property", "blockopoly-trade"]
+

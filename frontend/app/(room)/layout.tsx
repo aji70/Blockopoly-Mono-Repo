@@ -11,9 +11,9 @@ export default function RoomLayout({
     return (
         <GameProvider>
             <main className="w-full h-screen overflow-x-hidden relative flex flex-row lg:gap-2">
-                {/* <Players /> */}
+                <Players />
                 {children}
-                {/* <GameRoom /> */}
+                <GameRoom />
             </main>
         </GameProvider>
     );
