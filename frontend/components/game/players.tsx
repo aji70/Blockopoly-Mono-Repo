@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronUp, ChevronDown, Flag, PiUsersThree, Handshake, CheckCircle, Repeat, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronUp, ChevronDown, Flag, Handshake, CheckCircle, Repeat, Plus } from 'lucide-react'
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAccount } from '@starknet-react/core'
@@ -321,11 +321,11 @@ const Players = () => {
           owner: ownerPlayer?.username || null,
           ownerUsername: ownerPlayer?.username || null,
           rent_site_only: Number(propertyData.rent_site_only || square.rent_site_only || 0),
-          cost: Number(square.cost || 0),
-          mortgage: Number(square.mortgage || 0),
+          cost: Number(square.price || 0),
+          mortgage: Number(square.price/2 || 0),
           color: square.color || '#FFFFFF',
-          house_cost: Number(square.house_cost || 0),
-          hotel_cost: Number(square.hotel_cost || 0),
+          house_cost: Number(square.cost_of_house || 0),
+          hotel_cost: Number(square.cost_of_house || 0),
           houses: Number(propertyData.houses || 0),
           hotels: Number(propertyData.hotels || 0),
         })
@@ -613,7 +613,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.house_cost || ownedProperties[player.position]?.houses >= 4 || ownedProperties[player.position]?.hotels > 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses >= 4 || ownedProperties[player.position]?.hotels > 0) {
       setError('Cannot buy house: Invalid property, max houses reached, or hotel already built.')
       return
     }
@@ -639,7 +639,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.hotel_cost || ownedProperties[player.position]?.houses < 4 || ownedProperties[player.position]?.hotels > 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses < 4 || ownedProperties[player.position]?.hotels > 0) {
       setError('Cannot buy hotel: Invalid property, requires 4 houses, or hotel already built.')
       return
     }
@@ -665,7 +665,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.house_cost || ownedProperties[player.position]?.houses === 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses === 0) {
       setError('Cannot sell house: Invalid property or no houses to sell.')
       return
     }
@@ -691,7 +691,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.hotel_cost || ownedProperties[player.position]?.hotels === 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.hotels === 0) {
       setError('Cannot sell hotel: Invalid property or no hotel to sell.')
       return
     }
@@ -781,13 +781,13 @@ const Players = () => {
     if (!currentPlayer) return []
     return boardData.filter(
       (property) =>
-        property.owner &&
-        property.owner !== currentPlayer.username &&
+        // property.owner &&
+        // property.owner !== currentPlayer.username &&
         property.type === 'property'
     ).map((property) => ({
       id: property.id,
       name: property.name,
-      ownerUsername: property.ownerUsername || 'Unknown',
+      ownerUsername:  'Unknown',//property.ownerUsername ||
       color: property.color || '#FFFFFF',
     }))
   }, [players, currentPlayerIndex])
@@ -805,7 +805,6 @@ const Players = () => {
           className="absolute top-0 left-0 bg-[#010F10] z-10 lg:hidden text-[#F0F7F7] w-[44px] h-[44px] rounded-e-[12px] flex items-center justify-center border-[1px] border-white/10 transition-all duration-300 hover:bg-gradient-to-r hover:from-blue-900 hover:to-indigo-900 hover:shadow-md"
           aria-label="Toggle sidebar"
         >
-          <PiUsersThree className="w-6 h-6" />
         </button>
       )}
       <aside
@@ -828,7 +827,7 @@ const Players = () => {
               className="text-[#F0F7F7] lg:hidden transition-colors duration-300 hover:text-cyan-300"
               aria-label="Toggle sidebar"
             >
-              {isSidebarOpen ? <ChevronLeft className="w-6 h-6" /> : <PiUsersThree className="size-[28px]" />}
+              {isSidebarOpen ? <ChevronLeft className="w-6 h-6" /> : <ChevronLeft className="size-[28px]" />}
             </button>
           </div>
 
@@ -987,7 +986,7 @@ const Players = () => {
                             <div className="flex-1">
                               <span className="font-medium">{property.name}</span>
                               <span className="block text-[11px] text-[#A0B1B8]">
-                                ID: {property.id} | Rent: ${property.rent_site_only} | Houses: {property.houses} | Hotels: {property.hotels}
+                                ID: {property.id} | Rent: ${property.rent_site_only} | Houses: {property.id} | Hotels: {property.id}
                               </span>
                             </div>
                           </li>
