@@ -1,6 +1,6 @@
 use blockopoly::model::game_model::{Game, GameCounter, GameStatus, GameTrait, GameType};
 use blockopoly::model::game_player_model::{GamePlayer, PlayerSymbol};
-use blockopoly::model::player_model::{AddressToUsername, IsRegistered, Player};
+use blockopoly::model::player_model::{AddressToUsername, Player, IsRegistered};
 use blockopoly::model::property_model::{
     IdToProperty, Property, PropertyToId, PropertyTrait, PropertyType,
 };
@@ -42,8 +42,8 @@ pub mod game {
     };
     use super::{
         AddressToUsername, Game, GameCounter, GamePlayer, GameStatus, GameTrait, GameType, IGame,
-        IdToProperty, IsRegistered, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait,
-        PropertyType,
+        IdToProperty, Player, PlayerSymbol, Property, PropertyToId, PropertyTrait, PropertyType,
+        IsRegistered,
     };
 
     #[derive(Copy, Drop, Serde)]
@@ -120,7 +120,6 @@ pub mod game {
 
             let mut player: Player = world.read_model(get_caller_address());
             player.last_game = game_id;
-
             self.mint(get_caller_address(), game_id, 1500);
             world.write_model(@player);
             game_id
@@ -219,8 +218,8 @@ pub mod game {
             player.joined = false;
 
             // Game status logic
-            if game.players_joined == 1 && game.status == GameStatus::Ongoing {
-                self.end_game(game_id);
+            if game.players_joined == 0 && game.status == GameStatus::Ongoing {
+                game.status = GameStatus::Ended;
             } else if game.status == GameStatus::Pending && game.players_joined == 0 {
                 game.status = GameStatus::Ended;
             }
@@ -466,7 +465,7 @@ pub mod game {
                 PlayerSymbol::Battleship => game.player_battleship = caller_username,
                 PlayerSymbol::Boot => game.player_boot = caller_username,
                 PlayerSymbol::Wheelbarrow => game.player_wheelbarrow = caller_username,
-            }
+            };
 
             // Attempt to join the game with the selected symbol
             self.try_join_symbol(game.clone().id, player_symbol, caller_username);

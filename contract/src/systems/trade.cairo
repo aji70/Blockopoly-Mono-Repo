@@ -1,5 +1,5 @@
-use blockopoly::model::property_model::TradeOfferDetails;
 use starknet::ContractAddress;
+use blockopoly::model::property_model::TradeOfferDetails;
 // define the interface
 #[starknet::interface]
 pub trait ITrade<T> {
@@ -33,9 +33,10 @@ pub trait ITrade<T> {
 // dojo decorator
 #[dojo::contract]
 pub mod trade {
-    use blockopoly::model::game_model::{Game, GameStatus};
-    use blockopoly::model::game_player_model::GamePlayer;
     use blockopoly::model::property_model::{Property, TradeCounter, TradeOffer, TradeStatus};
+
+    use blockopoly::model::game_model::{Game, GameStatus};
+    use blockopoly::model::game_player_model::{GamePlayer};
 
     // use dojo::event::EventStorage;
 

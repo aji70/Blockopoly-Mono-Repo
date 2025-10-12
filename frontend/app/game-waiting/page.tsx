@@ -4,9 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAccount } from '@starknet-react/core';
 import { useGameActions } from '@/hooks/useGameActions';
-import { PiTelegramLogoLight } from 'react-icons/pi';
-import { FaXTwitter } from 'react-icons/fa6';
-import { IoCopyOutline } from 'react-icons/io5';
 
 interface Game {
   status: { variant: { Pending?: {}; Ongoing?: {} } };
@@ -75,10 +72,18 @@ const GameWaiting = () => {
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [playerSymbol, setPlayerSymbol] = useState<string>('0');
-  const [playerSymbolFields, setPlayerSymbolFields] = useState<string[]>([]);
-  const [availableSymbols, setAvailableSymbols] = useState<{ value: string; label: string }[]>([]);
-  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [playerSymbol, setPlayerSymbol] = useState<string>('0'); // Default to 0 (e.g., Hat)
+  const [playerSymbolFields, setPlayerSymbolFields] = useState<string[]>([]); // Array for symbol names with value 0
+  const [availableSymbols, setAvailableSymbols] = useState<{ value: string; label: string }[]>([
+    { value: '0', label: 'Hat' },
+    { value: '1', label: 'Car' },
+    { value: '2', label: 'Dog' },
+    { value: '3', label: 'Thimble' },
+    { value: '4', label: 'Iron' },
+    { value: '5', label: 'Battleship' },
+    { value: '6', label: 'Boot' },
+    { value: '7', label: 'Wheelbarrow' },
+  ]);
 
   const numericGameId = gameId ? Number(gameId) : NaN;
   const isGameReady = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers && isInitialised;
@@ -86,30 +91,6 @@ const GameWaiting = () => {
   const showStartGame = playersJoined !== null && maxPlayers !== null && playersJoined === maxPlayers;
   const showGoToBoard = isGameReady && !!isPending && !!isPlayerInGame;
   const showJoinGame = !!account && !!address && !!gameId && !isNaN(numericGameId) && playerData?.joined === false;
-  const showShareButtons = playersJoined !== null && maxPlayers !== null && playersJoined < maxPlayers;
-  const showLeaveGame = !!account && !!address && !!gameId && !isNaN(numericGameId) && playerData?.joined === true && !isGameReady;
-
-  // Share game URL and text
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://blockopoly-mono-repo-g8ew.vercel.app');
-  if (!process.env.NEXT_PUBLIC_BASE_URL) {
-    console.warn('NEXT_PUBLIC_BASE_URL is not set in .env. Using fallback URL:', baseUrl);
-  }
-  const gameUrl = `${baseUrl}/game-waiting?gameId=${gameId}`;
-  const shareText = `Join my Blockopoly game in the waiting room! Game ID: ${gameId}. Enter the waiting room at ${gameUrl}`;
-  const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(gameUrl)}&text=${encodeURIComponent(shareText)}`;
-  const twitterShareUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
-
-  // Handle copying the game URL to clipboard
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(gameUrl);
-      setCopySuccess('Copied!');
-      setTimeout(() => setCopySuccess(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      setError('Failed to copy link. Please try again.');
-    }
-  };
 
   const fetchGameData = useCallback(async () => {
     if (!gameId || isNaN(numericGameId) || !address) return;
@@ -126,6 +107,7 @@ const GameWaiting = () => {
       const pending = !!gameData.status?.variant?.Pending;
       const playerInGame = gameData.game_players.includes(address);
 
+      // Map player_* fields to symbol names, filter for value BigInt(0)
       const symbolFields = [
         { field: 'player_hat', label: '🧢 Hat', value: '0' },
         { field: 'player_car', label: '🚗 Car', value: '1' },
@@ -136,7 +118,17 @@ const GameWaiting = () => {
         { field: 'player_boot', label: '👢 Boot', value: '6' },
         { field: 'player_wheelbarrow', label: '🛒 Wheelbarrow', value: '7' },
       ];
-
+      // Log player_* field values for debugging
+      console.log('[GameWaiting] Player Fields:', {
+        player_hat: gameData.player_hat,
+        player_car: gameData.player_car,
+        player_dog: gameData.player_dog,
+        player_thimble: gameData.player_thimble,
+        player_iron: gameData.player_iron,
+        player_battleship: gameData.player_battleship,
+        player_boot: gameData.player_boot,
+        player_wheelbarrow: gameData.player_wheelbarrow,
+      });
       const symbolNames = symbolFields
         .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
         .map(({ label }) => label);
@@ -144,6 +136,7 @@ const GameWaiting = () => {
         .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
         .map(({ value, label }) => ({ value, label }));
 
+      // Fetch player data
       const playerDataResult = (await gameActions.getPlayer(address, numericGameId)) as Player;
 
       setPlayersJoined(!isNaN(joined) ? joined : playersJoined);
@@ -154,6 +147,7 @@ const GameWaiting = () => {
       setPlayerData(playerDataResult);
       setPlayerSymbolFields(symbolNames);
       setAvailableSymbols(filteredSymbols);
+      // Set default playerSymbol to first available symbol
       if (filteredSymbols.length > 0 && !filteredSymbols.some((symbol) => symbol.value === playerSymbol)) {
         setPlayerSymbol(filteredSymbols[0].value);
       }
@@ -195,29 +189,12 @@ const GameWaiting = () => {
       setLoading(true);
       setError(null);
       await gameActions.joinGame(account, Number(playerSymbol), numericGameId);
-      await fetchGameData();
+      console.log('[GameWaiting] Join Game called:', { gameId, playerSymbol });
+      // No redirect; rely on polling to update joined status
+      await fetchGameData(); // Immediate fetch to reflect updated status
     } catch (err: any) {
       console.error('Error joining game:', err.message);
       setError('Failed to join game. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLeaveGame = async () => {
-    if (!account || !address || !gameId || isNaN(numericGameId)) {
-      setError('Please connect your wallet and provide a valid game ID');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      await gameActions.leaveGame(account, numericGameId);
-      await fetchGameData();
-    } catch (err: any) {
-      console.error('Error leaving game:', err.message);
-      setError('Failed to leave game. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -298,51 +275,6 @@ const GameWaiting = () => {
             </div>
           )}
 
-          {/* Share Game Code Section */}
-          {showShareButtons && (
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={gameUrl}
-                  readOnly
-                  className="w-full bg-[#0A1A1B] text-[#F0F7F7] p-2 rounded border border-[#00F0FF]/30 focus:outline-none font-orbitron text-sm"
-                  title="Game URL"
-                />
-                <button
-                  onClick={handleCopyLink}
-                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-3 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
-                  disabled={loading}
-                >
-                  <IoCopyOutline className="w-5 h-5" />
-                </button>
-              </div>
-              {copySuccess && (
-                <p className="text-green-400 text-xs text-center">{copySuccess}</p>
-              )}
-              <div className="flex justify-center gap-4">
-                <a
-                  href={telegramShareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
-                >
-                  <PiTelegramLogoLight className="mr-2 w-5 h-5" />
-                  Share on Telegram
-                </a>
-                <a
-                  href={twitterShareUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center bg-[#0A1A1B] text-[#0FF0FC] text-sm font-orbitron font-semibold py-2 px-4 rounded-lg border border-[#00F0FF]/30 hover:bg-[#00F0FF]/20 transition-all duration-300"
-                >
-                  <FaXTwitter className="mr-2 w-5 h-5" />
-                  Share on X
-                </a>
-              </div>
-            </div>
-          )}
-
           {showJoinGame && (
             <div className="mt-6 space-y-4">
               {availableSymbols.length > 0 ? (
@@ -376,16 +308,6 @@ const GameWaiting = () => {
                 </p>
               )}
             </div>
-          )}
-
-          {showLeaveGame && (
-            <button
-              onClick={handleLeaveGame}
-              className="w-full mt-6 bg-[#FF4D4D] text-white text-sm font-orbitron font-semibold py-3 rounded-lg hover:bg-[#E63939] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-              disabled={loading}
-            >
-              Leave Game
-            </button>
           )}
 
           {showStartGame && (
