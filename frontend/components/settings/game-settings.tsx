@@ -81,7 +81,7 @@ const GameSettings = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gameType, setGameType] = useState('');
+  const [gameType, setGameType] = useState('0');
   const [selectedToken, setSelectedToken] = useState('');
   const [numberOfPlayers, setNumberOfPlayers] = useState('');
 
