@@ -3,89 +3,94 @@
 import { House } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
+import { FaUser } from 'react-icons/fa6';
 import { IoIosAddCircle } from 'react-icons/io';
-import { isWasmSupported, getWasmCapabilities } from '@/utils/wasm-loader';
-import { useAccount } from '@starknet-react/core';
-import { usePlayerActions } from '@/hooks/usePlayerActions';
-import { useGameActions } from '@/hooks/useGameActions';
-import { shortString } from 'starknet';
-import GameRoomLoading from '@/components/game/game-room-loading';
+import { IoKey } from 'react-icons/io5';
+import { RxDotFilled } from 'react-icons/rx';
+import { IoIosArrowDown, IoIosArrowUp } from 'react-icons/io';
 
-interface Token {
-  name: string;
-  emoji: string;
-  value: number;
+// Define settings interface
+interface GameSettings {
+  auction: number;
+  even_build: number;
+  mortgage: number;
+  randomize_play_order: number;
+  rent_in_prison: number;
+  starting_cash: number;
 }
 
-interface Player {
-  address: `0x${string}` | undefined;
-  tokenValue: number;
-}
-
+// Define game interface
 interface Game {
   id: number;
-  creator: `0x${string}` | undefined;
-  players: Player[];
-  maxPlayers: number;
-  availableTokens: Token[];
-  status: { variant: { Pending?: {}; Ongoing?: {} } };
-  is_initialised: boolean;
-  players_joined: string;
-  number_of_players: string;
-  dice_face: string;
-  hat: string;
-  car: string;
-  dog: string;
-  thimble: string;
-  iron: string;
-  battleship: string;
-  boot: string;
-  wheelbarrow: string;
-  player_hat: bigint;
-  player_car: bigint;
-  player_dog: bigint;
-  player_thimble: bigint;
-  player_iron: bigint;
-  player_battleship: bigint;
-  player_boot: bigint;
-  player_wheelbarrow: bigint;
+  code: string;
+  mode: 'PUBLIC' | 'PRIVATE';
+  status: string;
+  number_of_players: number;
+  players_joined?: number;
+  creator_id?: number;
+  settings?: GameSettings;
+  created_at?: string;
 }
 
-const tokens: Token[] = [
-  { name: 'Hat', emoji: '🎩', value: 0 },
-  { name: 'Car', emoji: '🚗', value: 1 },
-  { name: 'Dog', emoji: '🐕', value: 2 },
-  { name: 'Thimble', emoji: '🧵', value: 3 },
-  { name: 'Iron', emoji: '🧼', value: 4 },
-  { name: 'Battleship', emoji: '🚢', value: 5 },
-  { name: 'Boot', emoji: '👞', value: 6 },
-  { name: 'Wheelbarrow', emoji: '🛒', value: 7 },
-];
-
 const JoinRoom = () => {
+  const router = useRouter();
+  // Dummy data for games
+  const [games] = useState<Game[]>([
+    {
+      id: 1,
+      code: 'ABC123',
+      mode: 'PUBLIC',
+      status: 'PENDING',
+      number_of_players: 4,
+      players_joined: 2,
+      creator_id: 1,
+      settings: {
+        auction: 1,
+        even_build: 0,
+        mortgage: 1,
+        randomize_play_order: 1,
+        rent_in_prison: 0,
+        starting_cash: 1500,
+      },
+      created_at: '2025-09-24T10:00:00Z',
+    },
+    {
+      id: 2,
+      code: 'XYZ789',
+      mode: 'PRIVATE',
+      status: 'PENDING',
+      number_of_players: 3,
+      players_joined: 1,
+      creator_id: 2,
+      settings: {
+        auction: 0,
+        even_build: 1,
+        mortgage: 0,
+        randomize_play_order: 0,
+        rent_in_prison: 1,
+        starting_cash: 2000,
+      },
+      created_at: '2025-09-24T12:00:00Z',
+    },
+  ]);
+  const [ongoingGames, setOngoingGames] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [inputCode, setInputCode] = useState<string>('');
+  const [continueGameId, setContinueGameId] = useState<number | null>(null);
+  const [expandedGame, setExpandedGame] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load ongoing games from localStorage
+    const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as number[];
+    setOngoingGames(storedGames);
+  }, []);
+
+  // Commented out backend logic
+  /*
   const { account, address, connector } = useAccount();
   const game = useGameActions();
   const player = usePlayerActions();
-  const router = useRouter();
-
-  const [showModal, setShowModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState<number | null>(null);
-  const [gameType, setGameType] = useState('');
-  const [selectedToken, setSelectedToken] = useState('');
-  const [joinToken, setJoinToken] = useState('');
-  const [numberOfPlayers, setNumberOfPlayers] = useState('');
-  const [roomId, setRoomId] = useState<number | null>(null);
-  const [continueGameId, setContinueGameId] = useState<number | null>(null);
-  const [username, setUsername] = useState('');
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [ongoingGames, setOngoingGames] = useState<number[]>([]);
-  const [isCreatingGame, setIsCreatingGame] = useState(false);
-  const [isJoiningGame, setIsJoiningGame] = useState(false);
-  const [availableTokens, setAvailableTokens] = useState<Token[]>(tokens);
-
   useEffect(() => {
     if (isWasmSupported()) {
       getWasmCapabilities();
@@ -112,431 +117,170 @@ const JoinRoom = () => {
         isMounted = false;
       };
     }
-    const storedGames = JSON.parse(localStorage.getItem('ongoingGames') || '[]') as number[];
-    setOngoingGames(storedGames);
   }, [address, player]);
+  */
 
-  const waitForLastGameUpdate = async (
-    expectedGameId: number,
-    maxWait: number = 90000
-  ) => {
-    const startTime = Date.now();
-    const delay = 2000;
-    const maxAttempts = 45; // 90s / 2s per attempt
-    let attempts = 0;
-
-    while (attempts < maxAttempts && Date.now() - startTime < maxWait) {
-      try {
-        const lastGame = Number(await game.lastGame());
-        console.log(
-          `[waitForLastGameUpdate] Polled lastGame: ${lastGame}, Expected: ${expectedGameId}, Attempt: ${attempts + 1}`
-        );
-        if (lastGame >= expectedGameId && lastGame > 0) {
-          return lastGame;
-        }
-      } catch (err: any) {
-        console.warn(`[waitForLastGameUpdate] Error polling lastGame (Attempt ${attempts + 1}):`, err.message);
-      }
-      attempts++;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-    console.warn(`[waitForLastGameUpdate] lastGame did not update. Last: ${await game.lastGame()}, Expected: ${expectedGameId}`);
-    return null; // Trigger fallback
-  };
-
-  const waitForGameStatus = async (gid: number, maxAttempts: number = 5, delay: number = 2000) => {
-    let attempts = 0;
-    while (attempts < maxAttempts) {
-      try {
-        const gameData = await game.getGame(gid) as Game;
-        if (!gameData) {
-          throw new Error('Game data not found.');
-        }
-        console.log(`[waitForGameStatus] Game ${gid} status:`, gameData.status, `is_initialised: ${gameData.is_initialised}, dice_face: ${gameData.dice_face}`);
-        return gameData;
-      } catch (err: any) {
-        console.warn(`[waitForGameStatus] Error checking game status, attempt ${attempts + 1}:`, err.message);
-      }
-      attempts++;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-    throw new Error('Game data not available after multiple attempts.');
-  };
-
-  const fetchAvailableTokens = async (gameId: number) => {
-    try {
-      const gameData = await game.getGame(gameId) as Game;
-      console.log('[fetchAvailableTokens] Raw gameData:', gameData);
-
-      const symbolFields = [
-        { field: 'player_hat', label: 'Hat', value: 0 },
-        { field: 'player_car', label: 'Car', value: 1 },
-        { field: 'player_dog', label: 'Dog', value: 2 },
-        { field: 'player_thimble', label: 'Thimble', value: 3 },
-        { field: 'player_iron', label: 'Iron', value: 4 },
-        { field: 'player_battleship', label: 'Battleship', value: 5 },
-        { field: 'player_boot', label: 'Boot', value: 6 },
-        { field: 'player_wheelbarrow', label: 'Wheelbarrow', value: 7 },
-      ];
-
-      // Log player_* field values for debugging
-      console.log('[fetchAvailableTokens] Player Fields:', {
-        player_hat: gameData.player_hat,
-        player_car: gameData.player_car,
-        player_dog: gameData.player_dog,
-        player_thimble: gameData.player_thimble,
-        player_iron: gameData.player_iron,
-        player_battleship: gameData.player_battleship,
-        player_boot: gameData.player_boot,
-        player_wheelbarrow: gameData.player_wheelbarrow,
-      });
-
-      const availableTokenValues = symbolFields
-        .filter(({ field }) => gameData[field as keyof Game] === BigInt(0))
-        .map(({ value }) => value);
-
-      const available = tokens.filter((t) => availableTokenValues.includes(t.value));
-      setAvailableTokens(available);
-      console.log(`[fetchAvailableTokens] Available tokens for game ${gameId}:`, available);
-
-      // Set default joinToken to the first available token
-      if (available.length > 0 && !available.some((token) => token.name === joinToken)) {
-        setJoinToken(available[0].name);
-      }
-
-      return available;
-    } catch (err: any) {
-      console.error('[fetchAvailableTokens] Error:', err.message);
-      setError('Failed to fetch available tokens.');
-      return tokens;
-    }
-  };
-
-  const handleCreateGame = async () => {
-    if (!account || !address) {
-      setError('Please connect your wallet');
-      console.log('[handleCreateGame] No wallet connected');
-      return;
-    }
-    if (!isRegistered) {
-      setError('Please register before creating a game');
-      console.log('[handleCreateGame] User not registered');
-      return;
-    }
-    if (!gameType || !selectedToken || !numberOfPlayers) {
-      setError('Please select all fields');
-      console.log('[handleCreateGame] Missing fields:', { gameType, selectedToken, numberOfPlayers });
-      return;
-    }
-
-    const gameTypeNum = Number(gameType);
-    const numPlayers = Number(numberOfPlayers);
-    if (gameType !== '0' && gameType !== '1') {
-      setError('Game type must be Public (0) or Private (1)');
-      console.log('[handleCreateGame] Invalid game type:', gameType);
-      return;
-    }
-    if (isNaN(numPlayers) || numPlayers < 2 || numPlayers > 8) {
-      setError('Number of players must be between 2 and 8');
-      console.log('[handleCreateGame] Invalid number of players:', numPlayers);
-      return;
-    }
-
-    const tokenValue = tokens.find((t) => t.name === selectedToken)?.value;
-    if (tokenValue === undefined) {
-      setError('Invalid token selected');
-      console.log('[handleCreateGame] Invalid token:', selectedToken);
-      return;
-    }
-
-    setIsCreatingGame(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const initialLastGame = Number(await game.lastGame()) || 0;
-      console.log(`[handleCreateGame] Initial lastGame: ${initialLastGame}`);
-
-      console.log(`[handleCreateGame] Creating game with type: ${gameTypeNum}, token: ${tokenValue}, players: ${numPlayers}, wallet: ${connector?.name || 'unknown'}`);
-      const tx = await game.createGame(account, gameTypeNum, tokenValue, numPlayers);
-      console.log('[handleCreateGame] Create game transaction:', tx);
-
-      if (!tx?.transaction_hash) {
-        throw new Error('No transaction hash returned from createGame');
-      }
-
-      console.log('[handleCreateGame] Waiting 30 seconds for contract to update...');
-      await new Promise((resolve) => setTimeout(resolve, 30000));
-
-      const newGameId = initialLastGame + 1;
-      console.log(`[handleCreateGame] Assumed new game ID: ${newGameId}`);
-
-      const currentLastGame = await waitForLastGameUpdate(newGameId);
-      console.log(`[handleCreateGame] Current lastGame: ${currentLastGame}`);
-
-      if (currentLastGame === null) {
-        throw new Error('Game creation not confirmed by lastGame update');
-      }
-
-      const gameData = await game.getGame(newGameId) as Game;
-      if (!gameData || !gameData.is_initialised) {
-        throw new Error('Game data not found or not initialized');
-      }
-      console.log('[handleCreateGame] Game data confirmed:', gameData);
-
-      const updatedGames = [...new Set([...ongoingGames, newGameId])];
-      setOngoingGames(updatedGames);
-      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
-      setShowModal(false);
-      console.log(`[handleCreateGame] Redirecting to /game-waiting?gameId=${newGameId}&creator=${address}`);
-      router.push(`/game-waiting?gameId=${newGameId}&creator=${address}`);
-    } catch (err: any) {
-      console.error('[handleCreateGame] Error:', err.message);
-      setError(err?.message || 'Failed to create game. Please try again.');
-    } finally {
-      setIsCreatingGame(false);
-    }
-  };
-
-  const handleJoinRoom = async (id?: number, ongoingToken?: string) => {
-    if (!account || !address) {
-      setError('Please connect your wallet');
-      console.log('[handleJoinRoom] No wallet connected');
-      return;
-    }
-    if (!isRegistered) {
-      setError('Please register before joining a game');
-      console.log('[handleJoinRoom] User not registered');
-      return;
-    }
-    if (loading) {
-      setError('Action in progress, please wait');
-      console.log('[handleJoinRoom] Action in progress');
-      return;
-    }
-
-    const selectedId = id !== undefined ? id : roomId;
-    if (!selectedId || isNaN(selectedId) || selectedId <= 0) {
-      setError('Please enter a valid game ID');
-      console.log('[handleJoinRoom] Invalid game ID:', selectedId);
-      return;
-    }
-
-    if (id === undefined && !joinToken) {
-      setError('Please select a valid token');
-      console.log('[handleJoinRoom] No token selected');
-      return;
-    }
-
-    setIsJoiningGame(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const available = await fetchAvailableTokens(selectedId);
-      const tokenValue = id === undefined 
-        ? tokens.find((t) => t.name === joinToken)?.value || 0 
-        : ongoingToken 
-          ? tokens.find((t) => t.name === ongoingToken)?.value || 0 
-          : 0;
-      if (!available.find((t) => t.value === tokenValue)) {
-        setError('Selected token is already taken. Please choose another.');
-        console.log('[handleJoinRoom] Token already taken:', tokenValue);
-        setIsJoiningGame(false);
-        return;
-      }
-
-      console.log(`[handleJoinRoom] Joining game with token: ${tokenValue}, ID: ${selectedId}, wallet: ${connector?.name || 'unknown'}`);
-      const tx = await game.joinGame(account, tokenValue, selectedId);
-      console.log('[handleJoinRoom] Join game transaction:', tx);
-
-      if (!tx?.transaction_hash) {
-        throw new Error('No transaction hash returned from joinGame');
-      }
-
-      const lastGame = await waitForLastGameUpdate(selectedId);
-      const updatedGames = [...new Set([...ongoingGames, selectedId])];
-      setOngoingGames(updatedGames);
-      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
-
-      if (lastGame === selectedId) {
-        console.log('[handleJoinRoom] Game joined successfully with gameId:', selectedId);
-        router.push(`/game-waiting?gameId=${selectedId}`);
-      } else {
-        console.warn('[handleJoinRoom] lastGame check failed, proceeding with fallback');
-        setError('Game joined, but lastGame update not confirmed. Proceeding to waiting room.');
-        router.push(`/game-waiting?gameId=${selectedId}`);
-      }
-    } catch (err: any) {
-      console.error('[handleJoinRoom] Error:', err.message);
-      setError(err?.message || 'Failed to join game. Please try again.');
-    } finally {
-      setIsJoiningGame(false);
-    }
-  };
-
-  const handleContinueGame = async () => {
-    if (!account || !address) {
-      setError('Please connect your wallet');
-      console.log('[handleContinueGame] No wallet connected');
-      return;
-    }
-    if (!isRegistered) {
-      setError('Please register before continuing a game');
-      console.log('[handleContinueGame] User not registered');
-      return;
-    }
-    if (loading) {
-      setError('Action in progress, please wait');
-      console.log('[handleContinueGame] Action in progress');
-      return;
-    }
-    if (!continueGameId || isNaN(continueGameId) || continueGameId <= 0) {
-      setError('Please enter a valid game ID');
-      console.log('[handleContinueGame] Invalid game ID:', continueGameId);
-      return;
-    }
-
+  const handleJoinByCode = (code: string) => {
     setLoading(true);
     setError(null);
-    setSuccess(null);
-
-    try {
-      console.log(`[handleContinueGame] Checking status for game ID: ${continueGameId}`);
-      const gameData = await waitForGameStatus(continueGameId);
-      if (!gameData) {
-        setError('Failed to fetch game data');
-        console.log('[handleContinueGame] Game data not found');
-        return;
-      }
-
-      const isPending = !!gameData.status?.variant?.Pending;
-      const isOngoing = !!gameData.status?.variant?.Ongoing || Number(gameData.dice_face) > 0;
-
-      console.log(`[handleContinueGame] Game status - Pending: ${isPending}, Ongoing: ${isOngoing}, dice_face: ${gameData.dice_face}`);
-
-      if (isPending) {
-        console.log(`[handleContinueGame] Redirecting to /game-waiting?gameId=${continueGameId}`);
-        router.push(`/game-waiting?gameId=${continueGameId}`);
-      } else if (isOngoing) {
-        console.log(`[handleContinueGame] Redirecting to /game-play?gameId=${continueGameId}`);
-        router.push(`/game-play?gameId=${continueGameId}`);
-      } else {
-        throw new Error('Invalid game status');
-      }
-    } catch (err: any) {
-      console.error('[handleContinueGame] Error:', err.message);
-      setError(err?.message || 'Failed to continue game. Please verify the game ID or try again later.');
-    } finally {
+    // Simulate joining a game
+    const game = games.find((g) => g.code === code.toUpperCase());
+    if (!game) {
+      setError(`Game ${code} not found.`);
       setLoading(false);
+      return;
+    }
+    if (game.status !== 'PENDING') {
+      setError(`Game ${code} has already started or ended.`);
+      setLoading(false);
+      return;
+    }
+    const updatedGames = [...new Set([...ongoingGames, game.id])];
+    setOngoingGames(updatedGames);
+    localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+    router.push(`/game-waiting?gameCode=${code}`);
+    setLoading(false);
+  };
+
+  const handleCreateRoom = () => {
+    router.push('/game-settings');
+  };
+
+  const handleInputJoin = () => {
+    if (inputCode.trim()) {
+      handleJoinByCode(inputCode.trim().toUpperCase());
     }
   };
 
-  const handleLeaveGame = async () => {
-    if (!account || !address) {
-      setError('Please connect your wallet');
-      console.log('[handleLeaveGame] No wallet connected');
-      return;
-    }
-    if (!isRegistered) {
-      setError('Please register before leaving a game');
-      console.log('[handleLeaveGame] User not registered');
-      return;
-    }
-    if (loading) {
-      setError('Action in progress, please wait');
-      console.log('[handleLeaveGame] Action in progress');
-      return;
-    }
+  const handleContinueGame = () => {
     if (!continueGameId || isNaN(continueGameId) || continueGameId <= 0) {
       setError('Please enter a valid game ID');
-      console.log('[handleLeaveGame] Invalid game ID:', continueGameId);
       return;
     }
-
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
-    try {
-      console.log(`[handleLeaveGame] Leaving game ID: ${continueGameId}`);
-      const tx = await game.leaveGame(account, continueGameId);
-      console.log('[handleLeaveGame] Leave game transaction:', tx);
-
-      if (!tx?.transaction_hash) {
-        throw new Error('No transaction hash returned from leaveGame');
-      }
-
-      const updatedGames = ongoingGames.filter((id) => id !== continueGameId);
-      setOngoingGames(updatedGames);
-      localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
-      setContinueGameId(null);
-      setSuccess('Successfully left game');
-    } catch (err: any) {
-      console.error('[handleLeaveGame] Error:', err.message);
-      setError(err?.message || 'Failed to leave game. Please try again.');
-    } finally {
+    // Simulate checking game status
+    const game = games.find((g) => g.id === continueGameId);
+    if (!game) {
+      setError('Game not found');
       setLoading(false);
+      return;
     }
+    const isPending = game.status === 'PENDING';
+    const isOngoing = game.status === 'ONGOING';
+
+    if (isPending) {
+      router.push(`/game-waiting?gameId=${continueGameId}`);
+    } else if (isOngoing) {
+      router.push(`/game-play?gameId=${continueGameId}`);
+    } else {
+      setError('Invalid game status');
+    }
+    setLoading(false);
+  };
+
+  const handleLeaveGame = () => {
+    if (!continueGameId || isNaN(continueGameId) || continueGameId <= 0) {
+      setError('Please enter a valid game ID');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    // Simulate leaving game
+    const updatedGames = ongoingGames.filter((id) => id !== continueGameId);
+    setOngoingGames(updatedGames);
+    localStorage.setItem('ongoingGames', JSON.stringify(updatedGames));
+    setContinueGameId(null);
+    setLoading(false);
   };
 
   const clearOngoingGames = () => {
     localStorage.removeItem('ongoingGames');
     setOngoingGames([]);
-    console.log('[clearOngoingGames] Cleared ongoing games from localStorage');
   };
 
-  useEffect(() => {
-    if (roomId && !isNaN(roomId) && roomId > 0) {
-      fetchAvailableTokens(roomId);
-    } else {
-      setAvailableTokens(tokens);
-    }
-  }, [roomId]);
+  // Toggle dropdown for a specific game
+  const toggleSettings = (code: string) => {
+    setExpandedGame(expandedGame === code ? null : code);
+  };
 
-  if (isCreatingGame || isJoiningGame) {
-    return <GameRoomLoading action={isCreatingGame ? 'create' : 'join'} />;
-  }
+  // Helper to render player indicators
+  const renderIndicators = (game: Game) => {
+    const playersJoined = game.players_joined || 1;
+    const maxPlayers = game.number_of_players;
+    return (
+      <span className="flex gap-1.5 text-[#263238]">
+        {Array(playersJoined)
+          .fill(0)
+          .map((_, i) => (
+            <FaUser key={`user-${i}`} className="text-[#F0F7F7]" />
+          ))}
+        {Array(maxPlayers - playersJoined)
+          .fill(0)
+          .map((_, i) => (
+            <RxDotFilled key={`dot-${i}`} className="w-5 h-5" />
+          ))}
+      </span>
+    );
+  };
+
+  // Helper for private indicator
+  const renderPrivateIndicator = (game: Game) => (
+    <span className="flex gap-1.5 text-[#263238] mt-2">
+      {game.mode === 'PRIVATE' && <IoKey className="text-[#F0F7F7] w-5 h-5" />}
+      {Array(game.number_of_players - 1)
+        .fill(0)
+        .map((_, i) => (
+          <RxDotFilled key={`key-dot-${i}`} className="w-5 h-5" />
+        ))}
+    </span>
+  );
+
+  // Helper to render game settings
+  const renderGameSettings = (settings?: GameSettings) => {
+    if (!settings) return null;
+    return (
+      <div className="text-[#869298] text-[14px] font-dmSans mt-2">
+        <p>
+          <strong>Auction:</strong> {settings.auction ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>
+          <strong>Even Build:</strong> {settings.even_build ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>
+          <strong>Mortgage:</strong> {settings.mortgage ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>
+          <strong>Randomize Play Order:</strong> {settings.randomize_play_order ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>
+          <strong>Rent in Prison:</strong> {settings.rent_in_prison ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>
+          <strong>Starting Cash:</strong> ${settings.starting_cash}
+        </p>
+      </div>
+    );
+  };
 
   return (
     <section className="w-full min-h-screen bg-settings bg-cover bg-fixed bg-center">
       <main className="w-full min-h-screen py-20 flex flex-col items-center justify-start bg-[#010F101F] backdrop-blur-[12px] px-4">
         <div className="w-full flex flex-col items-center">
-          {isRegistered && (
-            <p className="text-[#00F0FF] font-orbitron md:text-[20px] text-[16px] font-[700] text-center mb-4">
-              Welcome, {username}!
-            </p>
-          )}
-          <h2 className="text-[#F0F7F7] font-orbitron md:text-[24px] text-[20px] font-[700] text-center">Join Room</h2>
+          <h2 className="text-[#F0F7F7] font-orbitron md:text-[24px] text-[20px] font-[700] text-center">
+            Join Room
+          </h2>
           <p className="text-[#869298] text-[16px] font-dmSans text-center">
-            Enter the numeric game ID to join
+            Select the room you would like to join
           </p>
         </div>
 
-        {ongoingGames.length > 0 && (
-          <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border border-[#003B3E] p-6">
-            <h3 className="text-[#F0F7F7] font-orbitron text-[18px] font-[600] text-center mb-4">
-              Ongoing Games
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {ongoingGames.map((id) => (
-                <button
-                  key={id}
-                  onClick={() => setShowJoinModal(id)}
-                  className="relative group w-full h-[40px] bg-transparent border border-[#003B3E] rounded-[8px] overflow-hidden cursor-pointer"
-                  disabled={loading}
-                >
-                  <span className="absolute inset-0 flex items-center justify-center text-[#00F0FF] text-[14px] font-dmSans font-medium z-10">
-                    Join Game: {id}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
+        {/* Buttons */}
         <div className="w-full max-w-[792px] mt-10 flex flex-col md:flex-row justify-between items-center gap-4">
           <button
+            type="button"
             onClick={() => router.push('/')}
             className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
             disabled={loading}
@@ -550,10 +294,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#0E1415"
                 stroke="#003B3E"
-                strokeWidth="1"
+                strokeWidth={1}
                 className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -562,9 +306,9 @@ const JoinRoom = () => {
               Go Back Home
             </span>
           </button>
-
           <button
-            onClick={() => setShowModal(true)}
+            type="button"
+            onClick={handleCreateRoom}
             className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
             disabled={loading}
           >
@@ -577,10 +321,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full transform scale-x-[-1] scale-y-[-1]"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#003B3E"
                 stroke="#003B3E"
-                strokeWidth="1"
+                strokeWidth={1}
                 className="group-hover:stroke-[#00F0FF] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -589,8 +333,8 @@ const JoinRoom = () => {
               Create New Room
             </span>
           </button>
-
           <button
+            type="button"
             onClick={clearOngoingGames}
             className="relative group w-full md:w-[227px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
             disabled={loading}
@@ -604,10 +348,10 @@ const JoinRoom = () => {
               className="absolute top-0 left-0 w-full h-full"
             >
               <path
-                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96243 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                d="M6 1H221C225.373 1 227.996 5.85486 225.601 9.5127L207.167 37.5127C206.151 39.0646 204.42 40 202.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
                 fill="#0E1415"
                 stroke="#FF0000"
-                strokeWidth="1"
+                strokeWidth={1}
                 className="group-hover:stroke-[#FF0000] transition-all duration-300 ease-in-out"
               />
             </svg>
@@ -617,36 +361,102 @@ const JoinRoom = () => {
           </button>
         </div>
 
-        <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border border-[#003B3E] md:px-20 px-6 py-12 flex flex-col gap-4">
-          <div className="w-full flex flex-col gap-4 mt-8">
+        {/* Rooms */}
+        <div className="w-full max-w-[792px] mt-10 bg-[#010F10] rounded-[12px] border-[1px] border-[#003B3E] md:px-20 px-6 py-12 flex flex-col gap-4">
+          {error && <p className="text-[#FF6B6B] text-center">{error}</p>}
+          {games.length === 0 ? (
+            <p className="text-[#869298] text-center">
+              No pending games available. Create one to start playing!
+            </p>
+          ) : (
+            games.map((game) => (
+              <div
+                key={game.code}
+                className="w-full p-4 border-[1px] flex flex-col items-start border-[#0E282A] rounded-[12px] cursor-pointer hover:border-[#00F0FF]"
+              >
+                <div
+                  className="w-full flex justify-between items-center"
+                  onClick={() => toggleSettings(game.code)}
+                >
+                  <h4 className="text-[#F0F7F7] text-[20px] uppercase font-dmSans font-[800]">
+                    {game.code}
+                  </h4>
+                  <div className="flex items-center gap-4">
+                    {renderIndicators(game)}
+                    {expandedGame === game.code ? (
+                      <IoIosArrowUp className="text-[#F0F7F7] w-5 h-5" />
+                    ) : (
+                      <IoIosArrowDown className="text-[#F0F7F7] w-5 h-5" />
+                    )}
+                  </div>
+                </div>
+                {renderPrivateIndicator(game)}
+                <p className="text-[#869298] text-[14px] font-dmSans mt-2">
+                  <strong>Players Joined:</strong> {game.players_joined || 1}/{game.number_of_players}
+                </p>
+                {expandedGame === game.code && (
+                  <div className="mt-2 w-full">
+                    <div className="text-[#869298] text-[14px] font-dmSans">
+                      <p>
+                        <strong>Mode:</strong> {game.mode}
+                      </p>
+                      <p>
+                        <strong>Created:</strong>{' '}
+                        {game.created_at ? new Date(game.created_at).toLocaleString() : 'N/A'}
+                      </p>
+                    </div>
+                    {renderGameSettings(game.settings)}
+                    <button
+                      type="button"
+                      onClick={() => handleJoinByCode(game.code)}
+                      className="relative group w-[150px] h-[40px] bg-transparent border-none p-0 overflow-hidden cursor-pointer mt-4"
+                      disabled={loading}
+                    >
+                      <svg
+                        width="150"
+                        height="40"
+                        viewBox="0 0 150 40"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
+                      >
+                        <path
+                          d="M6 1H144C148.373 1 150.996 5.85486 148.601 9.5127L130.167 37.5127C129.151 39.0646 127.42 40 125.565 40H6C2.96244 40 0.5 37.5376 0.5 34.5V6.5C0.5 3.46243 2.96243 1 6 1Z"
+                          fill="#00F0FF"
+                          stroke="#0E282A"
+                          strokeWidth={1}
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-[#010F10] capitalize text-[14px] font-orbitron font-[700] z-10">
+                        Join Room
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {/* Join by Code */}
+          <div className="w-full h-[52px] flex mt-8">
             <input
-              type="number"
-              placeholder="Enter game ID (e.g., 1)"
-              value={roomId ?? ''}
-              onChange={(e) => setRoomId(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF]"
+              type="text"
+              placeholder="Input room code"
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value)}
+              className="w-full h-full px-4 text-[#73838B] border-[1px] border-[#0E282A] rounded-[12px] flex-1 outline-none focus:border-[#00F0FF]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleInputJoin();
+                }
+              }}
               disabled={loading}
             />
-            <div>
-              <label className="block text-[#F0F7F7] font-dmSans text-[14px] mb-2">Select Token</label>
-              <select
-                value={joinToken}
-                onChange={(e) => setJoinToken(e.target.value)}
-                className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                disabled={loading || availableTokens.length === 0}
-              >
-                <option value="" disabled>Select a token</option>
-                {availableTokens.map((token) => (
-                  <option key={token.name} value={token.name}>
-                    {token.emoji} {token.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             <button
-              onClick={() => handleJoinRoom()}
-              className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
-              disabled={loading || !roomId || !joinToken}
+              type="button"
+              onClick={handleInputJoin}
+              className="relative group w-[260px] h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
+              disabled={loading}
             >
               <svg
                 width="260"
@@ -657,18 +467,19 @@ const JoinRoom = () => {
                 className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
               >
                 <path
-                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C4.5 3.46243 6.96243 1 10 1Z"
+                  d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96244 52 4.5 49.5376 4.5 46.5V9.5C4.5 6.46243 6.96243 4 10 4Z"
                   fill="#00F0FF"
                   stroke="#0E282A"
-                  strokeWidth="1"
+                  strokeWidth={1}
                 />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
+              <span className="absolute inset-0 flex items-center justify-center text-[#010F10] capitalize text-[18px] -tracking-[2%] font-orbitron font-[700] z-10">
                 Join Room
               </span>
             </button>
           </div>
 
+          {/* Continue Existing Game */}
           <div className="w-full flex flex-col gap-4 mt-8">
             <h3 className="text-[#F0F7F7] font-orbitron text-[18px] font-[600] text-center">
               Continue Existing Game
@@ -683,6 +494,7 @@ const JoinRoom = () => {
             />
             <div className="flex flex-col md:flex-row gap-4">
               <button
+                type="button"
                 onClick={handleContinueGame}
                 className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
                 disabled={loading || !continueGameId}
@@ -696,10 +508,10 @@ const JoinRoom = () => {
                   className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
                 >
                   <path
-                    d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C0.5 3.46243 6.96243 1 10 1Z"
+                    d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96244 52 4.5 49.5376 4.5 46.5V9.5C4.5 6.46243 6.96243 4 10 4Z"
                     fill="#00F0FF"
                     stroke="#0E282A"
-                    strokeWidth="1"
+                    strokeWidth={1}
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
@@ -707,6 +519,7 @@ const JoinRoom = () => {
                 </span>
               </button>
               <button
+                type="button"
                 onClick={handleLeaveGame}
                 className="relative group w-full h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
                 disabled={loading || !continueGameId}
@@ -720,10 +533,10 @@ const JoinRoom = () => {
                   className="absolute top-0 left-0 w-full h-full transform scale-x-[-1]"
                 >
                   <path
-                    d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96243 52 4.5 49.5376 4.5 46.5V6.5C0.5 3.46243 6.96243 1 10 1Z"
+                    d="M10 1H250C254.373 1 256.996 6.85486 254.601 10.5127L236.167 49.5127C235.151 51.0646 233.42 52 231.565 52H10C6.96244 52 4.5 49.5376 4.5 46.5V9.5C4.5 6.46243 6.96243 4 10 4Z"
                     fill="#FF4D4D"
                     stroke="#0E282A"
-                    strokeWidth="1"
+                    strokeWidth={1}
                   />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-[#010F10] text-[18px] font-orbitron font-[700] z-10">
@@ -732,139 +545,7 @@ const JoinRoom = () => {
               </button>
             </div>
           </div>
-
-          {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
-          {success && <p className="text-green-400 text-sm text-center mt-4">{success}</p>}
         </div>
-
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
-            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
-              <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
-                Create New Game
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Game Type</label>
-                  <select
-                    value={gameType}
-                    onChange={(e) => setGameType(e.target.value)}
-                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                    disabled={loading}
-                  >
-                    <option value="" disabled>Select game type</option>
-                    <option value="0">Public</option>
-                    <option value="1">Private</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
-                  <select
-                    value={selectedToken}
-                    onChange={(e) => setSelectedToken(e.target.value)}
-                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                    disabled={loading}
-                  >
-                    <option value="" disabled>Select a token</option>
-                    {tokens.map((token) => (
-                      <option key={token.name} value={token.name}>
-                        {token.emoji} {token.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Number of Players</label>
-                  <select
-                    value={numberOfPlayers}
-                    onChange={(e) => setNumberOfPlayers(e.target.value)}
-                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                    disabled={loading}
-                  >
-                    <option value="" disabled>Select number of players</option>
-                    {[2, 3, 4, 5, 6, 7, 8].map((num) => (
-                      <option key={num} value={num}>
-                        {num}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  onClick={handleCreateGame}
-                  className="w-full bg-[#00F0FF] text-[#010F10] py-2 rounded font-bold"
-                  disabled={loading}
-                >
-                  Create Game
-                </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="w-full text-sm mt-2 text-center underline text-[#869298]"
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showJoinModal !== null && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-settings bg-cover bg-fixed bg-center bg-opacity-70">
-            <div className="bg-[#010F10] border border-[#00F0FF] rounded-xl p-6 w-full max-w-sm text-white relative z-10">
-              <h2 className="text-xl font-bold mb-4 text-center font-orbitron text-[#00F0FF]">
-                Join Ongoing Game
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Game ID</label>
-                  <input
-                    type="number"
-                    value={showJoinModal}
-                    disabled
-                    className="w-full px-3 py-2 bg-transparent border border-[#0E282A] rounded text-[#73838B]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1 font-dmSans text-[#F0F7F7]">Select Token</label>
-                  <select
-                    value={joinToken}
-                    onChange={(e) => setJoinToken(e.target.value)}
-                    className="w-full h-[52px] px-4 text-[#73838B] border border-[#0E282A] rounded-[12px] outline-none focus:border-[#00F0FF] bg-transparent"
-                    disabled={loading || availableTokens.length === 0}
-                  >
-                    <option value="" disabled>Select a token</option>
-                    {availableTokens.map((token) => (
-                      <option key={token.name} value={token.name}>
-                        {token.emoji} {token.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  onClick={() => {
-                    handleJoinRoom(showJoinModal, joinToken);
-                    setShowJoinModal(null);
-                    setJoinToken('');
-                  }}
-                  className="w-full bg-[#00F0FF] text-[#010F10] py-2 rounded font-bold"
-                  disabled={loading || !joinToken}
-                >
-                  Join Game
-                </button>
-                <button
-                  onClick={() => {
-                    setShowJoinModal(null);
-                    setJoinToken('');
-                  }}
-                  className="w-full text-sm mt-2 text-center underline text-[#869298]"
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </section>
   );

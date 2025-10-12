@@ -38,6 +38,23 @@ interface Player {
   joined: boolean;
 }
 
+interface Token {
+  name: string;
+  emoji: string;
+  value: number;
+}
+
+const tokens: Token[] = [
+  { name: 'Hat', emoji: '🧢', value: 0 },
+  { name: 'Car', emoji: '🚗', value: 1 },
+  { name: 'Dog', emoji: '🐕', value: 2 },
+  { name: 'Thimble', emoji: '📌', value: 3 },
+  { name: 'Iron', emoji: '🔧', value: 4 },
+  { name: 'Battleship', emoji: '🚢', value: 5 },
+  { name: 'Boot', emoji: '👢', value: 6 },
+  { name: 'Wheelbarrow', emoji: '🛒', value: 7 },
+];
+
 const GameWaiting = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,7 +98,6 @@ const GameWaiting = () => {
     try {
       const gameData = (await gameActions.getGame(numericGameId)) as Game;
       if (!gameData) {
-        console.warn('No game data returned, keeping last state.');
         return;
       }
 
@@ -93,14 +109,14 @@ const GameWaiting = () => {
 
       // Map player_* fields to symbol names, filter for value BigInt(0)
       const symbolFields = [
-        { field: 'player_hat', label: 'Hat', value: '0' },
-        { field: 'player_car', label: 'Car', value: '1' },
-        { field: 'player_dog', label: 'Dog', value: '2' },
-        { field: 'player_thimble', label: 'Thimble', value: '3' },
-        { field: 'player_iron', label: 'Iron', value: '4' },
-        { field: 'player_battleship', label: 'Battleship', value: '5' },
-        { field: 'player_boot', label: 'Boot', value: '6' },
-        { field: 'player_wheelbarrow', label: 'Wheelbarrow', value: '7' },
+        { field: 'player_hat', label: '🧢 Hat', value: '0' },
+        { field: 'player_car', label: '🚗 Car', value: '1' },
+        { field: 'player_dog', label: '🐕 Dog', value: '2' },
+        { field: 'player_thimble', label: '📌 Thimble', value: '3' },
+        { field: 'player_iron', label: '🔧 Iron', value: '4' },
+        { field: 'player_battleship', label: '🚢 Battleship', value: '5' },
+        { field: 'player_boot', label: '👢 Boot', value: '6' },
+        { field: 'player_wheelbarrow', label: '🛒 Wheelbarrow', value: '7' },
       ];
       // Log player_* field values for debugging
       console.log('[GameWaiting] Player Fields:', {
@@ -122,7 +138,6 @@ const GameWaiting = () => {
 
       // Fetch player data
       const playerDataResult = (await gameActions.getPlayer(address, numericGameId)) as Player;
-      console.log('[GameWaiting] Player Data:', playerDataResult);
 
       setPlayersJoined(!isNaN(joined) ? joined : playersJoined);
       setMaxPlayers(!isNaN(max) ? max : maxPlayers);
@@ -144,6 +159,8 @@ const GameWaiting = () => {
       setError('Failed to load game data. Retrying...');
     }
   }, [gameId, numericGameId, gameActions, address, playersJoined, maxPlayers, playerSymbol]);
+
+  
 
   useEffect(() => {
     let isMounted = true;
@@ -193,7 +210,6 @@ const GameWaiting = () => {
       return;
     }
 
-    console.log('[GameWaiting] Redirecting to /game-play');
     router.push(`/game-play?gameId=${numericGameId}`);
   };
 
@@ -202,7 +218,6 @@ const GameWaiting = () => {
       setError('Cannot proceed to game board');
       return;
     }
-    console.log('[GameWaiting] Navigating to game board:', numericGameId);
     router.push(`/game-play?gameId=${numericGameId}`);
   };
 
@@ -271,6 +286,7 @@ const GameWaiting = () => {
                       onChange={(e) => setPlayerSymbol(e.target.value)}
                       className="bg-[#0A1A1B] text-[#F0F7F7] p-2 rounded border border-[#00F0FF]/30 focus:outline-none focus:ring-2 focus:ring-[#00F0FF] font-orbitron"
                     >
+                      <option value="" disabled>Select a symbol</option>
                       {availableSymbols.map((symbol) => (
                         <option key={symbol.value} value={symbol.value}>
                           {symbol.label}

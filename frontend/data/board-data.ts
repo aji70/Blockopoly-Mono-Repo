@@ -111,7 +111,7 @@ export const boardData: BoardSquare[] = [
     cost_of_house: 0,
     is_mortgaged: false,
     group_id: 0,
-    color: "#000000", // Black for railroads
+    color: "#D3D3D3", // Black for railroads
     position: "bottom",
     gridPosition: { row: 11, col: 6 },
     icon: "/game/sydney.svg",
@@ -303,7 +303,7 @@ export const boardData: BoardSquare[] = [
     cost_of_house: 0,
     is_mortgaged: false,
     group_id: 0,
-    color: "#000000", // Black for railroads
+    color: "#D3D3D3", // Black for railroads
     position: "left",
     gridPosition: { row: 6, col: 1 },
     icon: "/game/athens.svg",
@@ -495,7 +495,7 @@ export const boardData: BoardSquare[] = [
     cost_of_house: 0,
     is_mortgaged: false,
     group_id: 0,
-    color: "#000000", // Black for railroads
+    color: "#D3D3D3", // Black for railroads
     position: "top",
     gridPosition: { row: 1, col: 6 },
     icon: "/game/madrid.svg",
@@ -687,7 +687,7 @@ export const boardData: BoardSquare[] = [
     cost_of_house: 0,
     is_mortgaged: false,
     group_id: 0,
-    color: "#000000", // Black for railroads
+    color: "#D3D3D3", // Black for railroads
     position: "right",
     gridPosition: { row: 6, col: 11 },
     icon: "/game/riodejaneiro.svg",
