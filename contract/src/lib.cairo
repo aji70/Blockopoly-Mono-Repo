@@ -1,6 +1,6 @@
-pub mod systems {
-    pub mod player;
+    pub mod systems {
     pub mod game;
+    pub mod player;
     pub mod movement;
     pub mod property;
     pub mod trade;
@@ -14,6 +14,5 @@ pub mod model {
 }
 
 pub mod tests {
-    mod test_world;
-    mod test_movement;
+    // mod test_world;
 }

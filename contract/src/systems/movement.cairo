@@ -10,7 +10,6 @@ pub trait IMovement<T> {
 
     fn current_player(self: @T, game_id: u256) -> ContractAddress;
     fn current_playername(self: @T, game_id: u256) -> felt252;
-    fn finish_turn(ref self: T, game_id: u256) -> bool;
 
     fn process_community_chest_card(ref self: T, game_id: u256, card: ByteArray) -> bool;
 
@@ -25,7 +24,7 @@ pub mod movement {
     use blockopoly::model::game_model::{Game, GameStatus};
     use blockopoly::model::game_player_model::{GamePlayer, GamePlayerTrait};
     use blockopoly::model::player_model::AddressToUsername;
-    use blockopoly::model::property_model::{Property, PropertyType, PropertyTrait};
+    use blockopoly::model::property_model::{Property, PropertyTrait, PropertyType};
 
     // use dojo::event::EventStorage;
     use dojo::model::ModelStorage;
@@ -47,12 +46,10 @@ pub mod movement {
             let mut world = self.world_default();
             let caller = get_caller_address();
             let mut game_player: GamePlayer = world.read_model((caller, game_id));
+            assert(!game_player.rolled_dice, 'you have moved');
             let mut game: Game = world.read_model(game_id);
 
-            // Strict turn enforcement
             assert!(game.next_player == caller, "Not your turn");
-            assert!(game.player_chance == caller, "Not your chance to play");
-            assert!(!game.has_thrown_dice, "Dice already thrown this turn");
             assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
 
             // Handle jailed players
@@ -109,9 +106,9 @@ pub mod movement {
                 game_player.paid_rent = false;
             }
 
-            // Update state
-            game.has_thrown_dice = true; // Mark that dice has been thrown for this turn
+            game_player.rolled_dice = true;
 
+            // Update state
             world.write_model(@game_player);
             world.write_model(@game);
             world.write_model(@property);
@@ -188,6 +185,7 @@ pub mod movement {
             let property: Property = world.read_model((player.position, game_id));
 
             assert!(player.position == 4 || player.position == 38);
+            assert!(tax_id == player.position);
             // Apply tax based on player position
             if player.position == 4 {
                 assert!(player.balance >= 200);
@@ -245,7 +243,7 @@ pub mod movement {
                         world.write_model(@other_player);
                     }
                     i += 1;
-                }
+                };
             } else if card == "Holiday Fund matures - Receive $100" {
                 player.balance += 100;
             } else if card == "Income tax refund - Collect $20" {
@@ -271,13 +269,11 @@ pub mod movement {
 
             player.paid_rent = true;
 
-            // Save state before finishing turn
+            // game = self.finish_turn(game);
             world.write_model(@player);
             world.write_model(@game);
             world.write_model(@property);
-
-            // Move to next player
-            self.finish_turn(game_id)
+            true
         }
 
         fn process_chance_card(ref self: ContractState, game_id: u256, card: ByteArray) -> bool {
@@ -385,46 +381,6 @@ pub mod movement {
             let game: Game = world.read_model(game_id);
             let player: AddressToUsername = world.read_model(game.next_player);
             player.username
-        }
-
-        fn finish_turn(ref self: ContractState, game_id: u256) -> bool {
-            let mut world = self.world_default();
-            let caller = get_caller_address();
-            let mut game: Game = world.read_model(game_id);
-
-            // Verify it's the current player's turn
-            assert!(game.next_player == caller, "Not your turn");
-            assert!(game.status == GameStatus::Ongoing, "Game is not ongoing");
-            assert!(game.has_thrown_dice, "Must throw dice before ending turn");
-
-            // Find current player's index
-            let mut current_index = 0;
-            let num_players = game.game_players.len();
-            let mut found = false;
-            while current_index < num_players {
-                if *game.game_players[current_index] == caller {
-                    found = true;
-                    break;
-                }
-                current_index += 1;
-            };
-            assert!(found, "Player not in game");
-
-            // Move to next player (circular)
-            let next_index = if current_index == num_players - 1 {
-                0 // Back to first player
-            } else {
-                current_index + 1
-            };
-
-            // Update game state for next player
-            game.next_player = *game.game_players[next_index];
-            game.player_chance = *game.game_players[next_index];
-            game.has_thrown_dice = false; // Reset for next player
-
-            // Write updated game state
-            world.write_model(@game);
-            true
         }
     }
 

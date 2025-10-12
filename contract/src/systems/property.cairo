@@ -1,6 +1,7 @@
-use blockopoly::model::property_model::{Property, PropertyType, PropertyTrait};
 use blockopoly::model::game_model::{Game, GameStatus};
-// define the interface
+use blockopoly::model::property_model::{Property, PropertyTrait, PropertyType};
+// define the interfaceGame ID
+
 #[starknet::interface]
 pub trait IProperty<T> {
     fn buy_property(ref self: T, property_id: u8, game_id: u256) -> bool;
@@ -16,14 +17,13 @@ pub trait IProperty<T> {
 // dojo decorator
 #[dojo::contract]
 pub mod property {
-    use starknet::{ContractAddress, contract_address_const, get_caller_address};
-
     use blockopoly::model::game_player_model::GamePlayer;
-    // use blockopoly::model::player_model::Player;
-    use super::{IProperty, Property, PropertyType, PropertyTrait, Game, GameStatus};
 
     // use dojo::event::EventStorage;
     use dojo::model::ModelStorage;
+    use starknet::{ContractAddress, contract_address_const, get_caller_address};
+    // use blockopoly::model::player_model::Player;
+    use super::{Game, GameStatus, IProperty, Property, PropertyTrait, PropertyType};
 
     // #[derive(Copy, Drop, Serde)]
     // #[dojo::event]
@@ -43,8 +43,10 @@ pub mod property {
             // get the game and check it is ongoing
             let mut found_game: Game = world.read_model(game_id);
             assert!(found_game.status == GameStatus::Ongoing, "game has not started yet ");
-
+            
             let caller = get_caller_address();
+            assert!(found_game.next_player == caller, "Not your turn");
+
             // Load the property
             let mut property: Property = world.read_model((property_id, game_id));
             let mut player: GamePlayer = world.read_model((caller, game_id));
@@ -339,6 +341,8 @@ pub mod property {
             let next_index = (current_index + 1) % players_len;
             game.next_player = *game.game_players.at(next_index);
 
+            player.rolled_dice = false;
+            world.write_model(@player);
             world.write_model(@game);
             game
         }
