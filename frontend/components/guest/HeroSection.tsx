@@ -28,58 +28,45 @@ const HeroSection = () => {
   const move = useMovementActions();
   const property = usePropertyActions();
   const trade = useTradeActions();
-  const [fields, setFields] = useState({
-    username: '',
-    addressp: '',
-  });
   const [response, setResponse] = useState<RegisterResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [username, setUsername] = useState('');
+  const [inputName, setInputName] = useState('');
   const [registrationPending, setRegistrationPending] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const router = useRouter();
-  const [gamerName, setGamerName] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGamerName(e.target.value);
-    setUsername(e.target.value);
+    setInputName(e.target.value);
   };
 
   const handleRouteToJoinRoom = () => {
-    console.log('[handleRouteToJoinRoom] Navigating to /join-room');
     router.push('/join-room');
   };
 
   const handleRouteToGameStats = () => {
-    console.log('[handleRouteToGameStats] Navigating to /game-stats');
     router.push('/game-stats');
   };
 
   const handleRouteToGameSettings = () => {
-    console.log('[handleRouteToGameSettings] Navigating to /game-settings');
     router.push('/game-settings');
   };
 
   const checkRegistration = async () => {
     try {
-      console.log('[checkRegistration] Checking registration for address:', address);
       const registered = await player.isRegistered(address!);
       setIsRegistered(registered);
       if (registered) {
         const user = await player.getUsernameFromAddress(address!);
         const decodedUsername = shortString.decodeShortString(user);
         setUsername(decodedUsername || 'Unknown');
-        setGamerName(decodedUsername || 'Unknown');
-        console.log('[checkRegistration] Username:', decodedUsername);
       } else {
         setUsername('');
-        setGamerName('');
       }
     } catch (err: any) {
-      console.error('[checkRegistration] Error:', err);
       setError(err?.message || 'Failed to check registration status');
     }
   };
@@ -90,9 +77,7 @@ const HeroSection = () => {
     setResponse(null);
     setRegistrationPending(true);
     try {
-      console.log(`[handleRequest] Executing ${label}`);
       const res = await fn();
-      console.log(`[handleRequest] ${label} response:`, res);
       setResponse(res);
       await new Promise((resolve) => setTimeout(resolve, 5000));
 
@@ -104,7 +89,6 @@ const HeroSection = () => {
       setSuccess('Registration successful!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
-      console.error(`[handleRequest] ${label} error:`, err);
       setError(err?.message || 'Failed to register. Please try again.');
       setRegistrationPending(false);
     } finally {
@@ -113,21 +97,17 @@ const HeroSection = () => {
   };
 
   useEffect(() => {
-    console.log('[useEffect] Address changed:', address);
     if (isWasmSupported()) {
       getWasmCapabilities();
     }
     if (address) {
       checkRegistration();
     }
-  }, [address, player]);
+  }, [address]);
 
-  useEffect(() => {
-    console.log('[useEffect] isCreatingGame:', isCreatingGame);
-  }, [isCreatingGame]);
+  useEffect(() => {}, [isCreatingGame]);
 
   if (isCreatingGame) {
-    console.log('[Render] Showing GameRoomLoading');
     return <GameRoomLoading action="create" />;
   }
 
@@ -225,7 +205,7 @@ const HeroSection = () => {
                 type="text"
                 name="name"
                 id="name"
-                value={gamerName}
+                value={inputName}
                 onChange={handleInputChange}
                 required
                 placeholder="input your name"
@@ -234,10 +214,10 @@ const HeroSection = () => {
               <button
                 type="button"
                 className="relative group w-[260px] h-[52px] bg-transparent border-none p-0 overflow-hidden cursor-pointer"
-                disabled={loading || !gamerName.trim() || !account}
+                disabled={loading || !inputName.trim() || !account}
                 onClick={() =>
                   account &&
-                  handleRequest(() => player.register(account, gamerName), 'register')
+                  handleRequest(() => player.register(account, inputName), 'register')
                 }
               >
                 <svg

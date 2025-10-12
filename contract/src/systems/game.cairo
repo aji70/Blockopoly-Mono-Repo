@@ -333,6 +333,7 @@ pub mod game {
             assert(!player.joined, 'player already joined');
             player.joined = true;
             player.username = caller_username;
+            player.player_symbol = player_symbol;
             world.write_model(@player);
 
             // Initialize player symbols
@@ -490,6 +491,7 @@ pub mod game {
             assert(!player.joined, 'PLAYER ALREADY JOINED');
             player.joined = true;
             player.username = caller_username;
+            player.player_symbol = player_symbol;
 
             // Start the game if all players have joined
             if game.players_joined == game.number_of_players {
