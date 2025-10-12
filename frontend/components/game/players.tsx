@@ -42,16 +42,16 @@ interface Property {
   color?: string;
   house_cost?: number;
   hotel_cost?: number;
-  houses: number;
-  hotels: number;
+  development: number;
 }
 
 interface OwnedProperty {
   owner: string;
   ownerUsername: string;
   token: string;
-  houses: number;
-  hotels: number;
+  development: number;
+  rent_site_only: number;
+  name: string;
 }
 
 interface TradeInputs {
@@ -176,9 +176,7 @@ const Players = () => {
         if (isOngoing) {
           return gameData
         }
-        console.log(`Game ${gid} not yet ongoing, attempt ${attempts + 1}/${maxAttempts}`)
       } catch (err: any) {
-        console.warn(`Error checking game status, attempt ${attempts + 1}:`, err.message)
       }
       attempts++
       await new Promise((resolve) => setTimeout(resolve, delay))
@@ -317,12 +315,14 @@ const Players = () => {
         if (propertyData.owner && propertyData.owner !== '0') {
           const ownerAddress = String(propertyData.owner).toLowerCase()
           const ownerPlayer = allPlayers.find((p) => p.address === ownerAddress)
+          const decodedName = shortString.decodeShortString(propertyData.name) || square.name
           ownershipMap[square.id] = {
             owner: ownerAddress,
             ownerUsername: ownerPlayer?.username || 'Unknown',
             token: ownerPlayer?.token || '',
-            houses: Number(propertyData.houses || 0),
-            hotels: Number(propertyData.hotels || 0),
+            development: Number(propertyData.development || 0),
+            rent_site_only: Number(propertyData.rent_site_only || 0),
+            name: decodedName,
           }
         }
       })
@@ -339,26 +339,32 @@ const Players = () => {
         const ownerAddress = propertyData.owner && propertyData.owner !== '0' ? String(propertyData.owner).toLowerCase() : null
         const ownerPlayer = ownerAddress ? allPlayers.find((p) => p.address === ownerAddress) : null
 
+        let currentRent = Number(propertyData.rent_site_only || square.rent_site_only || 0)
+        const dev = Number(propertyData.development || 0)
+        if (dev >= 1 && dev <= 4) {
+          currentRent = Number(propertyData[`rent_${dev}_houses`] || currentRent)
+        } else if (dev === 5) {
+          currentRent = Number(propertyData.rent_hotel || currentRent)
+        }
+
         setCurrentProperty({
           id: Number(propertyData.id || square.id),
           name: decodedPropertyName,
           type: square.type,
           owner: ownerPlayer?.username || null,
           ownerUsername: ownerPlayer?.username || null,
-          rent_site_only: Number(propertyData.rent_site_only || square.rent_site_only || 0),
+          rent_site_only: currentRent,
           cost: Number(square.price || 0),
           mortgage: Number(square.price/2 || 0),
           color: square.color || '#FFFFFF',
           house_cost: Number(square.cost_of_house || 0),
           hotel_cost: Number(square.cost_of_house || 0),
-          houses: Number(propertyData.houses || 0),
-          hotels: Number(propertyData.hotels || 0),
+          development: dev,
         })
       } else {
         setCurrentProperty(null)
       }
     } catch (err: any) {
-      console.error('Failed to load game data:', err)
       if (!isSilent) {
         setError(err.message || 'Failed to load game data. Please try again or check the game ID.')
       }
@@ -472,7 +478,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Offer Trade Error:', err)
       setError(err.message || 'Error offering trade.')
     } finally {
       setIsLoading(false)
@@ -494,7 +499,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Accept Trade Error:', err)
       setError(err.message || 'Error accepting trade.')
     } finally {
       setIsLoading(false)
@@ -516,7 +520,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Reject Trade Error:', err)
       setError(err.message || 'Error rejecting trade.')
     } finally {
       setIsLoading(false)
@@ -566,7 +569,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Counter Trade Error:', err)
       setError(err.message || 'Error countering trade.')
     } finally {
       setIsLoading(false)
@@ -588,7 +590,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Approve Counter Trade Error:', err)
       setError(err.message || 'Error approving counter trade.')
     } finally {
       setIsLoading(false)
@@ -609,7 +610,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Buy Property Error:', err)
       setError(err.message || 'Error buying property.')
     } finally {
       setIsLoading(false)
@@ -630,7 +630,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Pay Tax Error:', err)
       setError(err.message || 'Error paying tax.')
     } finally {
       setIsLoading(false)
@@ -643,7 +642,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses >= 4 || ownedProperties[player.position]?.hotels > 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.development >= 4 || ownedProperties[player.position]?.development > 4) {
       setError('Cannot buy house: Invalid property, max houses reached, or hotel already built.')
       return
     }
@@ -656,7 +655,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Buy House Error:', err)
       setError(err.message || 'Error buying house.')
     } finally {
       setIsLoading(false)
@@ -669,7 +667,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses < 4 || ownedProperties[player.position]?.hotels > 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.development < 4 || ownedProperties[player.position]?.development > 4) {
       setError('Cannot buy hotel: Invalid property, requires 4 houses, or hotel already built.')
       return
     }
@@ -682,7 +680,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Buy Hotel Error:', err)
       setError(err.message || 'Error buying hotel.')
     } finally {
       setIsLoading(false)
@@ -695,7 +692,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.houses === 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.development === 0) {
       setError('Cannot sell house: Invalid property or no houses to sell.')
       return
     }
@@ -708,7 +705,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Sell House Error:', err)
       setError(err.message || 'Error selling house.')
     } finally {
       setIsLoading(false)
@@ -721,7 +717,7 @@ const Players = () => {
       return
     }
     const square = boardData.find((s) => s.id === player.position)
-    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.hotels === 0) {
+    if (!square || square.type !== 'property' || !square.cost_of_house || ownedProperties[player.position]?.development === 0) {
       setError('Cannot sell hotel: Invalid property or no hotel to sell.')
       return
     }
@@ -734,7 +730,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Sell Hotel Error:', err)
       setError(err.message || 'Error selling hotel.')
     } finally {
       setIsLoading(false)
@@ -755,7 +750,6 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Mortgage Property Error:', err)
       setError(err.message || 'Error mortgaging property.')
     } finally {
       setIsLoading(false)
@@ -776,51 +770,46 @@ const Players = () => {
       }
       closeModal()
     } catch (err: any) {
-      console.error('Unmortgage Property Error:', err)
       setError(err.message || 'Error unmortgaging property.')
     } finally {
       setIsLoading(false)
     }
   }
 
+  const myPlayer = useMemo(() => players.find(p => p.address === String(address).toLowerCase()), [players, address])
+
   const ownedPropertiesList = useMemo(() => {
-    const currentPlayer = players[currentPlayerIndex]
-    if (!currentPlayer) return []
-    return currentPlayer.properties_owned.map((id) => {
-      const property = boardData.find((p) => p.id === id)
-      return property || {
-        id,
-        name: `Property ${id}`,
-        type: 'unknown',
-        owner: currentPlayer.username,
-        ownerUsername: currentPlayer.username,
-        rent_site_only: 0,
-        cost: 0,
-        mortgage: 0,
-        color: '#FFFFFF',
-        house_cost: 0,
-        hotel_cost: 0,
-        houses: ownedProperties[id]?.houses || 0,
-        hotels: ownedProperties[id]?.hotels || 0,
-      }
-    })
-  }, [players, currentPlayerIndex, ownedProperties])
+    if (!myPlayer) return []
+    return Object.entries(ownedProperties)
+      .filter(([_, prop]) => prop.owner === myPlayer.address)
+      .map(([idStr, prop]) => {
+        const id = Number(idStr)
+        const boardProp = boardData.find(b => b.id === id)
+        return {
+          id,
+          name: prop.name,
+          rent_site_only: prop.rent_site_only,
+          development: prop.development,
+          color: boardProp?.color || '#FFFFFF',
+        }
+      })
+  }, [myPlayer, ownedProperties])
 
   const otherPlayersProperties = useMemo(() => {
-    const currentPlayer = players[currentPlayerIndex]
-    if (!currentPlayer) return []
-    return boardData.filter(
-      (property) =>
-        // property.owner &&
-        // property.owner !== currentPlayer.username &&
-        property.type === 'property'
-    ).map((property) => ({
-      id: property.id,
-      name: property.name,
-      ownerUsername:  'Unknown',//property.ownerUsername ||
-      color: property.color || '#FFFFFF',
-    }))
-  }, [players, currentPlayerIndex])
+    if (!myPlayer) return []
+    return Object.entries(ownedProperties)
+      .filter(([_, prop]) => prop.owner !== myPlayer.address && prop.owner !== '')
+      .map(([idStr, prop]) => {
+        const id = Number(idStr)
+        const boardProp = boardData.find(b => b.id === id)
+        return {
+          id,
+          name: prop.name,
+          ownerUsername: prop.ownerUsername,
+          color: boardProp?.color || '#FFFFFF',
+        }
+      })
+  }, [myPlayer, ownedProperties])
 
   const winningPlayerId = useMemo(() => {
     if (players.length === 0) return null
@@ -1004,7 +993,7 @@ const Players = () => {
                             <div className="flex-1">
                               <span className="font-medium">{property.name}</span>
                               <span className="block text-[11px] text-[#A0B1B8]">
-                                ID: {property.id} | Rent: ${property.rent_site_only} | Houses: {'houses' in property ? property.houses : 0} | Hotels: {'hotels' in property ? property.hotels : 0}
+                                ID: {property.id} | Rent: ${property.rent_site_only} | Development: {property.development}
                               </span>
                             </div>
                           </li>
